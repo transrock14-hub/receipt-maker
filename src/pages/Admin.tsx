@@ -1,0 +1,559 @@
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { api, type ActivityEvent, type AuthUser } from '../auth/api'
+import { useAuth } from '../auth/AuthContext'
+import './AccountPages.css'
+
+type Props = {
+  onBack: () => void
+}
+
+type Credentials = { username: string; password: string; name: string }
+
+function randomPassword(length = 12): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$'
+  const bytes = new Uint8Array(length)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => chars[b % chars.length]).join('')
+}
+
+function actionLabel(action: string): string {
+  const map: Record<string, string> = {
+    login: 'Login',
+    login_failed: 'Failed login',
+    login_blocked: 'Blocked login',
+    logout: 'Logout',
+    register: 'Register',
+    download_screenshot: 'Download',
+    copy_screenshot: 'Copy',
+    batch_export: 'Batch export',
+    generate_receipt: 'Generate',
+    save_project: 'Save',
+    open_billing: 'Billing',
+    payment_create: 'Payment started',
+    payment_finished: 'Payment done',
+    admin_user_create: 'Admin · create user',
+    admin_user_update: 'Admin · update user',
+  }
+  return map[action] || action.replace(/_/g, ' ')
+}
+
+export function AdminPage({ onBack }: Props) {
+  const { logout } = useAuth()
+  const [users, setUsers] = useState<AuthUser[]>([])
+  const [payments, setPayments] = useState<Array<Record<string, unknown>>>([])
+  const [activity, setActivity] = useState<ActivityEvent[]>([])
+  const [activitySummary, setActivitySummary] = useState<{
+    total: number
+    logins_24h: number
+    failed_24h: number
+    unique_ips_24h: number
+  } | null>(null)
+  const [stats, setStats] = useState<{
+    users: number
+    active_paid: number
+    active_trials: number
+    payments_finished: number
+    revenue_usdt: number
+  } | null>(null)
+  const [q, setQ] = useState('')
+  const [activityQ, setActivityQ] = useState('')
+  const [activityAction, setActivityAction] = useState('all')
+  const [error, setError] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<number | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [credentials, setCredentials] = useState<Credentials | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  const [newName, setNewName] = useState('')
+  const [newUsername, setNewUsername] = useState('')
+  const [newPassword, setNewPassword] = useState(() => randomPassword())
+  const [paidDays, setPaidDays] = useState(30)
+
+  const loadActivity = useCallback(async (query?: string, action?: string) => {
+    const res = await api.adminActivity({
+      q: query || undefined,
+      action: action && action !== 'all' ? action : undefined,
+      limit: 200,
+    })
+    setActivity(res.events)
+    setActivitySummary(res.summary)
+  }, [])
+
+  const load = useCallback(async (query?: string) => {
+    try {
+      const [u, p, s] = await Promise.all([
+        api.adminUsers(query),
+        api.adminPayments(),
+        api.adminStats(),
+      ])
+      setUsers(u.users)
+      setPayments(p.payments)
+      setStats(s.stats)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Admin load failed')
+    }
+  }, [])
+
+  useEffect(() => {
+    void load()
+    void loadActivity().catch((err) =>
+      setError(err instanceof Error ? err.message : 'Activity load failed'),
+    )
+  }, [load, loadActivity])
+
+  const updateUser = async (
+    id: number,
+    patch: { status?: 'active' | 'banned'; extend_days?: number; password?: string },
+  ) => {
+    setBusyId(id)
+    try {
+      const res = await api.adminUpdateUser({ user_id: id, ...patch })
+      if (res.credentials) setCredentials(res.credentials)
+      await load(q || undefined)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Update failed')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const createUser = async (e: FormEvent) => {
+    e.preventDefault()
+    setCreating(true)
+    setError(null)
+    setCopied(false)
+    try {
+      const res = await api.adminCreateUser({
+        username: newUsername.trim(),
+        password: newPassword,
+        name: newName.trim() || undefined,
+        paid_days: paidDays > 0 ? paidDays : 0,
+      })
+      setCredentials(res.credentials)
+      setNewName('')
+      setNewUsername('')
+      setNewPassword(randomPassword())
+      setPaidDays(30)
+      await load(q || undefined)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Create failed')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const copyCredentials = async () => {
+    if (!credentials) return
+    const text = [
+      `Receipt Maker login`,
+      `Username: ${credentials.username}`,
+      `Password: ${credentials.password}`,
+      credentials.name ? `Name: ${credentials.name}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n')
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+    } catch {
+      setError('Could not copy — select the details manually')
+    }
+  }
+
+  const resetPassword = (u: AuthUser) => {
+    const pwd = randomPassword()
+    if (
+      !window.confirm(
+        `Reset password for ${u.username}?\n\nNew password will be shown so you can send it.`,
+      )
+    ) {
+      return
+    }
+    void updateUser(u.id, { password: pwd })
+  }
+
+  return (
+    <div className="account-page">
+      <header className="account-header">
+        <div className="account-header-row">
+          <button type="button" className="account-back" onClick={onBack}>
+            ← Studio
+          </button>
+          <button type="button" className="account-btn" onClick={() => void logout()}>
+            Log out
+          </button>
+        </div>
+        <h1>Admin</h1>
+        <p>Create accounts, monitor logins & activity, ban/extend access, and track payments.</p>
+      </header>
+
+      {stats && (
+        <section className="stats-row">
+          <div>
+            <strong>{stats.users}</strong>
+            <span>Users</span>
+          </div>
+          <div>
+            <strong>{stats.active_paid}</strong>
+            <span>Paid</span>
+          </div>
+          <div>
+            <strong>{stats.active_trials}</strong>
+            <span>Trials</span>
+          </div>
+          <div>
+            <strong>{stats.payments_finished}</strong>
+            <span>Payments</span>
+          </div>
+          <div>
+            <strong>{Number(stats.revenue_usdt).toFixed(2)}</strong>
+            <span>USDT</span>
+          </div>
+        </section>
+      )}
+
+      <section className="account-panel">
+        <div className="panel-toolbar">
+          <h2>Platform monitor</h2>
+          <form
+            className="search-row"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void loadActivity(activityQ || undefined, activityAction).catch((err) =>
+                setError(err instanceof Error ? err.message : 'Activity load failed'),
+              )
+            }}
+          >
+            <select
+              value={activityAction}
+              onChange={(e) => setActivityAction(e.target.value)}
+              aria-label="Filter by action"
+            >
+              <option value="all">All actions</option>
+              <option value="login">Logins</option>
+              <option value="login_failed">Failed logins</option>
+              <option value="logout">Logouts</option>
+              <option value="register">Registers</option>
+              <option value="download_screenshot">Downloads</option>
+              <option value="copy_screenshot">Copies</option>
+              <option value="batch_export">Batch export</option>
+              <option value="generate_receipt">Generate</option>
+              <option value="payment_create">Payments</option>
+              <option value="admin_user_create">Admin creates</option>
+              <option value="admin_user_update">Admin updates</option>
+            </select>
+            <input
+              value={activityQ}
+              onChange={(e) => setActivityQ(e.target.value)}
+              placeholder="Search user, IP, city…"
+            />
+            <button type="submit" className="account-btn">
+              Filter
+            </button>
+            <button
+              type="button"
+              className="account-btn"
+              onClick={() =>
+                void loadActivity(activityQ || undefined, activityAction).catch((err) =>
+                  setError(err instanceof Error ? err.message : 'Refresh failed'),
+                )
+              }
+            >
+              Refresh
+            </button>
+          </form>
+        </div>
+
+        {activitySummary && (
+          <div className="monitor-summary">
+            <div>
+              <strong>{activitySummary.logins_24h}</strong>
+              <span>Logins · 24h</span>
+            </div>
+            <div>
+              <strong>{activitySummary.failed_24h}</strong>
+              <span>Failed · 24h</span>
+            </div>
+            <div>
+              <strong>{activitySummary.unique_ips_24h}</strong>
+              <span>Unique IPs · 24h</span>
+            </div>
+            <div>
+              <strong>{activitySummary.total}</strong>
+              <span>Shown</span>
+            </div>
+          </div>
+        )}
+
+        <div className="monitor-table-wrap">
+          <table className="account-table monitor-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Location</th>
+                <th>IP</th>
+                <th>What they did</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activity.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="muted">
+                    No activity yet — logins and downloads will appear here.
+                  </td>
+                </tr>
+              ) : (
+                activity.map((ev) => (
+                  <tr key={ev.id} className={ev.action === 'login_failed' ? 'row-warn' : undefined}>
+                    <td className="mono tiny-time">
+                      {ev.created_at ? new Date(ev.created_at).toLocaleString() : '—'}
+                    </td>
+                    <td>
+                      {ev.username ? (
+                        <span className="user-cell">
+                          <strong>@{ev.username}</strong>
+                        </span>
+                      ) : (
+                        <span className="muted">—</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`action-pill action-${ev.action}`}>{actionLabel(ev.action)}</span>
+                    </td>
+                    <td className="loc-cell">{ev.location || 'Unknown'}</td>
+                    <td className="mono">{ev.ip || '—'}</td>
+                    <td>
+                      <div className="detail-cell">{ev.detail || actionLabel(ev.action)}</div>
+                      {ev.user_agent ? (
+                        <div className="tiny ua-cell" title={ev.user_agent}>
+                          {ev.user_agent}
+                        </div>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="account-panel">
+        <h2>Create user</h2>
+        <form className="create-user-form" onSubmit={(e) => void createUser(e)}>
+          <label>
+            Name
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Customer name"
+            />
+          </label>
+          <label>
+            Username
+            <input
+              type="text"
+              required
+              minLength={3}
+              value={newUsername}
+              onChange={(e) => setNewUsername(e.target.value)}
+              placeholder="username"
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+            />
+          </label>
+          <label>
+            Password
+            <div className="password-row">
+              <input
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                minLength={8}
+                required
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                className="account-btn"
+                onClick={() => setNewPassword(randomPassword())}
+              >
+                Generate
+              </button>
+            </div>
+          </label>
+          <label>
+            Paid access (days)
+            <input
+              type="number"
+              min={0}
+              max={3650}
+              value={paidDays}
+              onChange={(e) => setPaidDays(Number(e.target.value))}
+            />
+          </label>
+          <button type="submit" className="account-btn primary" disabled={creating}>
+            {creating ? 'Creating…' : 'Create account'}
+          </button>
+        </form>
+        <p className="muted create-hint">
+          After create, copy the login details below and send them to the customer.
+        </p>
+      </section>
+
+      {credentials && (
+        <section className="account-panel credentials-box">
+          <h2>Login details to send</h2>
+          <dl className="cred-grid">
+            <div>
+              <dt>Username</dt>
+              <dd className="mono">{credentials.username}</dd>
+            </div>
+            <div>
+              <dt>Password</dt>
+              <dd className="mono">{credentials.password}</dd>
+            </div>
+            {credentials.name ? (
+              <div>
+                <dt>Name</dt>
+                <dd>{credentials.name}</dd>
+              </div>
+            ) : null}
+          </dl>
+          <div className="actions-cell">
+            <button type="button" className="account-btn primary" onClick={() => void copyCredentials()}>
+              {copied ? 'Copied' : 'Copy login details'}
+            </button>
+            <button type="button" className="account-btn" onClick={() => setCredentials(null)}>
+              Dismiss
+            </button>
+          </div>
+          <p className="muted create-hint">Password is only shown once here — it is stored hashed.</p>
+        </section>
+      )}
+
+      <section className="account-panel">
+        <div className="panel-toolbar">
+          <h2>Users</h2>
+          <form
+            className="search-row"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void load(q || undefined)
+            }}
+          >
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search username or name"
+            />
+            <button type="submit" className="account-btn">
+              Search
+            </button>
+          </form>
+        </div>
+        <table className="account-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Role</th>
+              <th>Access</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u) => (
+              <tr key={u.id}>
+                <td>
+                  <div className="user-cell">
+                    <strong>{u.name}</strong>
+                    <span>@{u.username}</span>
+                  </div>
+                </td>
+                <td>{u.role}</td>
+                <td>
+                  {u.status === 'banned'
+                    ? 'Banned'
+                    : u.access.can_download
+                      ? 'Unlocked'
+                      : 'Locked'}
+                  {u.access.paid_until ? (
+                    <div className="tiny">Paid → {new Date(u.access.paid_until).toLocaleDateString()}</div>
+                  ) : null}
+                </td>
+                <td className="actions-cell">
+                  {u.status === 'banned' ? (
+                    <button
+                      type="button"
+                      className="account-btn"
+                      disabled={busyId === u.id}
+                      onClick={() => void updateUser(u.id, { status: 'active' })}
+                    >
+                      Unban
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="account-btn danger"
+                      disabled={busyId === u.id || u.role === 'admin'}
+                      onClick={() => void updateUser(u.id, { status: 'banned' })}
+                    >
+                      Ban
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="account-btn"
+                    disabled={busyId === u.id}
+                    onClick={() => void updateUser(u.id, { extend_days: 30 })}
+                  >
+                    +30 days
+                  </button>
+                  <button
+                    type="button"
+                    className="account-btn"
+                    disabled={busyId === u.id}
+                    onClick={() => resetPassword(u)}
+                  >
+                    Reset password
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="account-panel">
+        <h2>Recent payments</h2>
+        <table className="account-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Plan</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {payments.slice(0, 40).map((p) => (
+              <tr key={String(p.id)}>
+                <td>{String(p.user_username || p.user_email || p.user_id)}</td>
+                <td>{String(p.plan_id)}</td>
+                <td>{Number(p.amount_usdt).toFixed(2)}</td>
+                <td>{String(p.status)}</td>
+                <td>{p.created_at ? new Date(String(p.created_at)).toLocaleString() : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      {error && <p className="account-error">{error}</p>}
+    </div>
+  )
+}

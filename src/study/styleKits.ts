@@ -1,0 +1,290 @@
+/**
+ * Style kits distilled from real wallet / bank receipt UIs
+ * (Binance, Coinbase, Trust, MetaMask, Cash App, PayPal).
+ * Used by Study + Generate so mocks match production apps.
+ */
+import type { GenerateValues } from '../types/receipt'
+
+export interface ReceiptStyleKit {
+  id: string
+  brand: string
+  /** Matching institution id when applicable. */
+  institutionId?: string
+  name: string
+  source: string
+  background: string
+  ink: string
+  muted: string
+  accent: string
+  success: string
+  line: string
+  palette: string[]
+  fontFamily: string
+  /** Typical status-bar ink (light on dark apps). */
+  chromeInk: string
+  defaults: Partial<GenerateValues>
+  notes: string[]
+  /** Layout hints distilled from real screenshots. */
+  layout?: {
+    topInset: number
+    rowDensity: 'tight' | 'normal' | 'loose'
+    darkChrome: boolean
+  }
+}
+
+/**
+ * Research notes (public product UIs / docs, 2024–2026):
+ * - Binance Withdrawal Details: dark #181A20, yellow #F0B90B links/TxID,
+ *   green #0ECB81 Completed, USDT disc #26A17B, label/value rows, Spot Wallet.
+ * - Coinbase Sent: light #FFFFFF, blue #0052FF, Inter-like type.
+ * - Trust Wallet Send success: white card, blue CTA #0481E2, green check.
+ * - MetaMask Activity: dark #24272A, orange #F6851B explorer link.
+ * - Cash App: full-bleed #00D632, huge $ amount, black Receipt pill.
+ * - PayPal: white, blue #0070BA, navy amount.
+ */
+export const RECEIPT_STYLE_KITS: ReceiptStyleKit[] = [
+  {
+    id: 'kit-binance-withdrawal',
+    brand: 'Binance',
+    institutionId: 'binance-withdrawal',
+    name: 'Withdrawal Details (dark)',
+    source: 'Binance app — Wallet → Withdrawal history → detail',
+    background: '#181A20',
+    ink: '#EAECEF',
+    muted: '#848E9C',
+    accent: '#F0B90B',
+    success: '#0ECB81',
+    line: '#2B3139',
+    palette: ['#181A20', '#EAECEF', '#F0B90B', '#0ECB81', '#26A17B', '#848E9C', '#2B3139'],
+    fontFamily: 'Roboto, Inter, "Noto Sans", sans-serif',
+    chromeInk: '#EAECEF',
+    defaults: {
+      title: 'Withdrawal Details',
+      amountCrypto: '-45 USDT',
+      amountFiat: '≈ $45.00',
+      status: 'Completed',
+      recipient: '0x7a2f8c1d...c91e4b2d',
+      network: 'BNB Smart Chain (BEP20)',
+      price: '45 USDT',
+      fee: '0.29 USDT',
+      date: '2026-07-26 14:26:18',
+      accountOrIban: '0x8f3a9c2e...a7e21c',
+      walletType: 'Spot Wallet',
+      other: 'View on blockchain explorer',
+      time: '14:26',
+      battery: '87',
+    },
+    notes: [
+      'Coin icon is USDT green disc with white T (not a status badge)',
+      'TxID and explorer link use Binance yellow; chevron is separate',
+      'Rows: Coin, Address, Network, Withdraw amount, Network fee, Date, TxID, Wallet',
+      'Header includes share action; CTA is full “View on blockchain explorer”',
+      'No solid card slab over the detail list — hairlines only',
+    ],
+    layout: { topInset: 52, rowDensity: 'normal', darkChrome: true },
+  },
+  {
+    id: 'kit-coinbase-sent',
+    brand: 'Coinbase',
+    institutionId: 'coinbase-sent',
+    name: 'Sent (light)',
+    source: 'Coinbase app — Activity → Sent',
+    background: '#FFFFFF',
+    ink: '#0A0B0D',
+    muted: '#5B616E',
+    accent: '#0052FF',
+    success: '#0052FF',
+    line: '#ECEFF3',
+    palette: ['#FFFFFF', '#0A0B0D', '#0052FF', '#5B616E', '#E8F1FF'],
+    fontFamily: '-apple-system, "SF Pro Text", system-ui, sans-serif',
+    chromeInk: '#0A0B0D',
+    defaults: {
+      title: 'Sent',
+      amountCrypto: '45 USDT',
+      amountFiat: '$45.00',
+      status: 'Completed',
+      recipient: '0x7a2f…4b2d',
+      network: 'Base',
+      fee: '$0.02',
+      date: 'Jul 26, 2026 at 2:26 PM',
+      other: 'View transaction',
+      time: '9:41',
+      battery: '100',
+    },
+    notes: [
+      'Blue Coinbase “C” mark + status pill',
+      'Light status bar (dark ink)',
+      'Base network copy on Sent detail',
+    ],
+    layout: { topInset: 56, rowDensity: 'normal', darkChrome: false },
+  },
+  {
+    id: 'kit-trust-send',
+    brand: 'Trust Wallet',
+    institutionId: 'trust-send',
+    name: 'Send success',
+    source: 'Trust Wallet — Send → Success',
+    background: '#FFFFFF',
+    ink: '#17171A',
+    muted: '#757B86',
+    accent: '#0481E2',
+    success: '#2BB673',
+    line: '#EEF0F3',
+    palette: ['#FFFFFF', '#17171A', '#0481E2', '#2BB673', '#757B86'],
+    fontFamily: '-apple-system, "SF Pro Text", Roboto, "Noto Sans", sans-serif',
+    chromeInk: '#17171A',
+    defaults: {
+      title: 'Send',
+      amountCrypto: '-45 USDT',
+      status: 'Success',
+      network: 'Smart Chain',
+      fee: '0.00021 BNB',
+      other: 'Done',
+      time: '14:26',
+      battery: '87',
+    },
+    notes: ['Green check circle, blue Done CTA'],
+    layout: { topInset: 48, rowDensity: 'normal', darkChrome: false },
+  },
+  {
+    id: 'kit-metamask-activity',
+    brand: 'MetaMask',
+    institutionId: 'metamask-activity',
+    name: 'Activity (dark)',
+    source: 'MetaMask mobile — Activity → Confirmed',
+    background: '#24272A',
+    ink: '#FCFCFC',
+    muted: '#BBC0C5',
+    accent: '#F6851B',
+    success: '#28A745',
+    line: '#3B4046',
+    palette: ['#24272A', '#FCFCFC', '#F6851B', '#28A745', '#2C3035'],
+    fontFamily: 'Roboto, "Noto Sans", Inter, sans-serif',
+    chromeInk: '#FCFCFC',
+    defaults: {
+      title: 'Transaction',
+      amountCrypto: '-45 USDT',
+      amountFiat: '$45.00',
+      status: 'Confirmed',
+      network: 'BNB Smart Chain',
+      fee: '0.00021 BNB',
+      other: 'View on block explorer',
+      time: '14:26',
+      battery: '87',
+    },
+    notes: ['Orange explorer CTA, dark card for amount'],
+    layout: { topInset: 52, rowDensity: 'tight', darkChrome: true },
+  },
+  {
+    id: 'kit-cashapp',
+    brand: 'Cash App',
+    institutionId: 'cashapp-payment',
+    name: 'Payment (green)',
+    source: 'Cash App — Payment complete',
+    background: '#00D632',
+    ink: '#FFFFFF',
+    muted: 'rgba(255,255,255,0.82)',
+    accent: '#000000',
+    success: '#FFFFFF',
+    line: 'transparent',
+    palette: ['#00D632', '#FFFFFF', '#000000'],
+    fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", sans-serif',
+    chromeInk: '#FFFFFF',
+    defaults: {
+      amountFiat: '$45',
+      recipient: 'Alex',
+      status: 'Complete',
+      other: 'Receipt',
+      time: '14:26',
+      battery: '87',
+    },
+    notes: ['Full-bleed green, huge amount, black Receipt pill'],
+    layout: { topInset: 100, rowDensity: 'loose', darkChrome: false },
+  },
+  {
+    id: 'kit-paypal',
+    brand: 'PayPal',
+    institutionId: 'paypal-sent',
+    name: 'Money sent',
+    source: 'PayPal app — You sent',
+    background: '#FFFFFF',
+    ink: '#001C64',
+    muted: '#6C7378',
+    accent: '#0070BA',
+    success: '#0D7A3E',
+    line: '#E6E8EB',
+    palette: ['#FFFFFF', '#001C64', '#0070BA', '#0D7A3E', '#F5F7FA'],
+    fontFamily: '-apple-system, "SF Pro Text", "Helvetica Neue", sans-serif',
+    chromeInk: '#001C64',
+    defaults: {
+      title: 'You sent',
+      amountFiat: '-$45.00',
+      status: 'Completed',
+      other: 'Send more money',
+      time: '9:41',
+      battery: '100',
+    },
+    notes: ['Navy amount, blue CTA'],
+    layout: { topInset: 40, rowDensity: 'normal', darkChrome: false },
+  },
+  {
+    id: 'kit-chase',
+    brand: 'Chase',
+    institutionId: 'chase-transfer',
+    name: 'Transfer details',
+    source: 'Chase mobile — Zelle / Transfer detail',
+    background: '#FFFFFF',
+    ink: '#0C2340',
+    muted: '#6B7280',
+    accent: '#117ACA',
+    success: '#0D7A3E',
+    line: '#E5E7EB',
+    palette: ['#FFFFFF', '#0C2340', '#117ACA', '#0D7A3E'],
+    fontFamily: 'Inter, -apple-system, "DM Sans", sans-serif',
+    chromeInk: '#0C2340',
+    defaults: {
+      title: 'Transfer details',
+      amountFiat: '-$45.00',
+      status: 'Completed',
+      other: 'Zelle®',
+      time: '9:41',
+      battery: '100',
+    },
+    notes: ['Blue CHASE header bar', 'Zelle method line under status'],
+    layout: { topInset: 56, rowDensity: 'normal', darkChrome: false },
+  },
+  {
+    id: 'kit-wise',
+    brand: 'Wise',
+    institutionId: 'wise-sent',
+    name: 'Money sent',
+    source: 'Wise app — Sent transfer',
+    background: '#FFFFFF',
+    ink: '#0E0F11',
+    muted: '#5D636F',
+    accent: '#9FE870',
+    success: '#163300',
+    line: '#E7E9EE',
+    palette: ['#FFFFFF', '#0E0F11', '#9FE870', '#163300'],
+    fontFamily: 'Inter, -apple-system, "DM Sans", sans-serif',
+    chromeInk: '#0E0F11',
+    defaults: {
+      title: 'Money sent',
+      amountFiat: '45.00 USD',
+      status: 'Sent',
+      fee: '0.74 USD',
+      time: '9:41',
+      battery: '100',
+    },
+    notes: ['Green Sent pill', 'ETA copy under amount'],
+    layout: { topInset: 40, rowDensity: 'normal', darkChrome: false },
+  },
+]
+
+export function getStyleKit(id: string): ReceiptStyleKit | undefined {
+  return RECEIPT_STYLE_KITS.find((k) => k.id === id)
+}
+
+export function styleKitForInstitution(institutionId: string): ReceiptStyleKit | undefined {
+  return RECEIPT_STYLE_KITS.find((k) => k.institutionId === institutionId)
+}

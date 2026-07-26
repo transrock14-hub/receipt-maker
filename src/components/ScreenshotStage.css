@@ -1,0 +1,80 @@
+.screenshot-stage {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+  padding: 0.75rem 0.75rem 2.25rem;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(40, 40, 48, 0.06), transparent 50%),
+    #e8e8ec;
+  overflow: hidden;
+}
+
+.screenshot-pane {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #1a1a1e;
+  border: 1px solid #2c2c32;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18);
+}
+
+.screenshot-pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #2c2c32;
+  background: #222228;
+}
+
+.screenshot-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.45rem;
+  border-radius: 6px;
+  background: #3a3a42;
+  color: #f0f0f2;
+}
+
+.screenshot-caption {
+  font-size: 0.68rem;
+  font-family: var(--mono);
+  color: #9a9aa3;
+}
+
+.screenshot-status {
+  margin: 0;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.72rem;
+  color: #c8c8d0;
+  background: #25252c;
+  border-bottom: 1px solid #2c2c32;
+}
+
+.screenshot-pane-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0;
+  background: #121214;
+}
+
+.screenshot-framed {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1rem auto;
+}

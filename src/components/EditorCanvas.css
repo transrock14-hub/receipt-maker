@@ -1,0 +1,131 @@
+.editor-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(122, 90, 248, 0.06), transparent 40%),
+    #e9e8ef;
+  position: relative;
+}
+
+.editor-stage-compact {
+  background: transparent;
+  height: 100%;
+}
+
+.editor-stage-compact .editor-viewport {
+  padding: 0.85rem;
+  align-items: flex-start;
+}
+
+.editor-stage-compact .editor-hint {
+  display: none;
+}
+
+.editor-viewport {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 2rem 1.5rem 2.5rem;
+  min-height: 0;
+}
+
+.editor-frame {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+.editor-paper {
+  background: #fff;
+  box-shadow:
+    0 0 0 1px rgba(26, 22, 48, 0.06),
+    0 18px 50px rgba(26, 22, 48, 0.14);
+  border-radius: 2px;
+  line-height: 0;
+  transition: transform 0.12s ease;
+  image-rendering: auto;
+  backface-visibility: hidden;
+}
+
+.editor-paper canvas {
+  image-rendering: auto;
+}
+
+.editor-canvas-host,
+.editor-paper canvas {
+  display: block;
+  position: relative;
+  z-index: 0;
+}
+
+.editor-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 0.75rem;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid #e6e4ef;
+  color: #8a849e;
+  font-size: 0.68rem;
+  font-family: var(--mono);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.magic-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(233, 232, 239, 0.55);
+  backdrop-filter: blur(4px);
+}
+
+.magic-card {
+  background: #1a1630;
+  color: #fff;
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
+  min-width: 220px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(26, 22, 48, 0.3);
+}
+
+.magic-spinner {
+  width: 28px;
+  height: 28px;
+  margin: 0 auto 0.75rem;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #a78bfa;
+  animation: spin 0.8s linear infinite;
+}
+
+.magic-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.magic-sub {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  font-family: var(--mono);
+  opacity: 0.75;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

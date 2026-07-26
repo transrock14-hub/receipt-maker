@@ -1,0 +1,131 @@
+.props-panel {
+  width: 280px;
+  flex-shrink: 0;
+  border-left: 1px solid #e6e4ef;
+  background: #ffffff;
+  padding: 1rem 0.9rem 1.5rem;
+  overflow-y: auto;
+}
+
+.props-panel h2 {
+  margin: 0 0 0.75rem;
+  font-family: var(--display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1a1630;
+  letter-spacing: -0.02em;
+}
+
+.props-empty-card {
+  background: #f8f6ff;
+  border: 1px solid #efeaf8;
+  border-radius: 12px;
+  padding: 0.85rem;
+}
+
+.props-empty-card p {
+  margin: 0 0 0.55rem;
+  font-size: 0.85rem;
+  color: #2d2940;
+  font-weight: 600;
+}
+
+.props-empty-card ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #8a849e;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.confidence {
+  margin: 0 0 0.75rem;
+  font-size: 0.72rem;
+  font-family: var(--mono);
+  color: #7a5af8;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.85rem;
+  flex: 1;
+}
+
+.field-row {
+  display: flex;
+  gap: 0.55rem;
+}
+
+.field > span {
+  font-size: 0.68rem;
+  font-family: var(--mono);
+  color: #8a849e;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.field textarea,
+.field input[type='text'],
+.field input[type='number'],
+.field select {
+  font: inherit;
+  font-size: 0.88rem;
+  color: #1a1630;
+  background: #faf9ff;
+  border: 1px solid #e6e4ef;
+  border-radius: 8px;
+  padding: 0.5rem 0.55rem;
+}
+
+.field textarea {
+  resize: vertical;
+  font-family: var(--mono);
+  line-height: 1.35;
+}
+
+.color-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.color-row input[type='color'] {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid #e6e4ef;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.color-row input[type='text'] {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+
+.mini-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.mini-palette .swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid #e6e4ef;
+  cursor: pointer;
+  padding: 0;
+}
+
+@media (max-width: 900px) {
+  .props-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #e6e4ef;
+  }
+}

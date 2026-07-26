@@ -1,0 +1,419 @@
+<?php
+declare(strict_types=1);
+
+function app_config(): array {
+  static $cfg = null;
+  if ($cfg !== null) return $cfg;
+  $base = require __DIR__ . '/config.example.php';
+  $local = __DIR__ . '/config.local.php';
+  if (is_file($local)) {
+    $base = array_merge($base, require $local);
+  }
+  $cfg = $base;
+  return $cfg;
+}
+
+function db_driver(): string {
+  return strtolower((string)(app_config()['db_driver'] ?? 'mysql'));
+}
+
+/** SQL expression for current timestamp (MySQL or SQLite). */
+function sql_now(): string {
+  return db_driver() === 'sqlite' ? "datetime('now')" : 'NOW()';
+}
+
+function db(): PDO {
+  static $pdo = null;
+  if ($pdo instanceof PDO) return $pdo;
+  $c = app_config();
+  $driver = db_driver();
+
+  if ($driver === 'sqlite') {
+    $path = $c['sqlite_path'] ?? (__DIR__ . '/data/local.sqlite');
+    $dir = dirname($path);
+    if (!is_dir($dir)) {
+      mkdir($dir, 0775, true);
+    }
+    $pdo = new PDO('sqlite:' . $path, null, null, [
+      PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+      PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    ]);
+    $pdo->exec('PRAGMA foreign_keys = ON');
+    return $pdo;
+  }
+
+  $dsn = sprintf(
+    'mysql:host=%s;dbname=%s;charset=%s',
+    $c['db_host'],
+    $c['db_name'],
+    $c['db_charset'] ?? 'utf8mb4'
+  );
+  $pdo = new PDO($dsn, $c['db_user'], $c['db_pass'], [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+  ]);
+  return $pdo;
+}
+
+function json_input(): array {
+  $raw = file_get_contents('php://input') ?: '';
+  if ($raw === '') return [];
+  $data = json_decode($raw, true);
+  return is_array($data) ? $data : [];
+}
+
+function respond(array $data, int $code = 200): void {
+  http_response_code($code);
+  header('Content-Type: application/json; charset=utf-8');
+  echo json_encode($data, JSON_UNESCAPED_SLASHES);
+  exit;
+}
+
+function fail(string $message, int $code = 400): void {
+  respond(['ok' => false, 'error' => $message], $code);
+}
+
+function cors(): void {
+  $origin = app_config()['cors_origin'] ?? '*';
+  header('Access-Control-Allow-Origin: ' . $origin);
+  header('Access-Control-Allow-Credentials: true');
+  header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Session-Token');
+  header('Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS');
+  if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+  }
+}
+
+function bearer_token(): ?string {
+  $hdr = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
+  if (preg_match('/Bearer\s+(\S+)/i', $hdr, $m)) return $m[1];
+  $alt = $_SERVER['HTTP_X_SESSION_TOKEN'] ?? '';
+  return $alt !== '' ? $alt : null;
+}
+
+function user_access(array $user): array {
+  $now = time();
+  $banned = ($user['status'] ?? '') === 'banned';
+  $trialEnds = !empty($user['trial_ends_at']) ? strtotime($user['trial_ends_at']) : 0;
+  $paidUntil = !empty($user['paid_until']) ? strtotime($user['paid_until']) : 0;
+  $trialActive = $trialEnds > $now;
+  $paidActive = $paidUntil > $now;
+  $active = !$banned && ($trialActive || $paidActive || ($user['role'] ?? '') === 'admin');
+  return [
+    'active' => $active,
+    'banned' => $banned,
+    'trial_active' => $trialActive,
+    'paid_active' => $paidActive,
+    'trial_ends_at' => $user['trial_ends_at'],
+    'paid_until' => $user['paid_until'],
+    'can_download' => $active,
+  ];
+}
+
+function public_user(array $user): array {
+  $access = user_access($user);
+  return [
+    'id' => (int)$user['id'],
+    'username' => $user['username'] ?? '',
+    'email' => $user['email'] ?? null,
+    'name' => $user['name'],
+    'role' => $user['role'],
+    'status' => $user['status'],
+    'access' => $access,
+  ];
+}
+
+function normalize_username(string $raw): string {
+  $u = strtolower(trim($raw));
+  $u = preg_replace('/\s+/', '', $u) ?? '';
+  return $u;
+}
+
+function validate_username(string $username): void {
+  if ($username === '' || strlen($username) < 3) {
+    fail('Username must be at least 3 characters');
+  }
+  if (strlen($username) > 80) fail('Username too long');
+  if (!preg_match('/^[a-z0-9._-]+$/', $username)) {
+    fail('Username may only use letters, numbers, dot, underscore, hyphen');
+  }
+}
+
+function find_user_by_login(string $login): ?array {
+  $login = trim($login);
+  if ($login === '') return null;
+  $username = normalize_username($login);
+  $stmt = db()->prepare(
+    'SELECT * FROM users WHERE username = ? OR lower(email) = lower(?) LIMIT 1'
+  );
+  $stmt->execute([$username, $login]);
+  $user = $stmt->fetch();
+  return $user ?: null;
+}
+
+function create_session(int $userId): string {
+  $token = bin2hex(random_bytes(32));
+  $days = (int)(app_config()['session_days'] ?? 30);
+  $expires = (new DateTimeImmutable("+{$days} days"))->format('Y-m-d H:i:s');
+  $stmt = db()->prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)');
+  $stmt->execute([$token, $userId, $expires]);
+  return $token;
+}
+
+function current_user(): ?array {
+  $token = bearer_token();
+  if (!$token) return null;
+  $stmt = db()->prepare(
+    'SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id
+     WHERE s.id = ? AND s.expires_at > ' . sql_now() . ' LIMIT 1'
+  );
+  $stmt->execute([$token]);
+  $user = $stmt->fetch();
+  return $user ?: null;
+}
+
+function require_user(): array {
+  $user = current_user();
+  if (!$user) fail('Unauthorized', 401);
+  if (($user['status'] ?? '') === 'banned') fail('Account banned', 403);
+  return $user;
+}
+
+function require_admin(): array {
+  $user = require_user();
+  if (($user['role'] ?? '') !== 'admin') fail('Admin only', 403);
+  return $user;
+}
+
+function log_admin(int $adminId, string $action, ?int $targetId = null, ?array $meta = null): void {
+  $stmt = db()->prepare(
+    'INSERT INTO admin_actions (admin_id, target_user_id, action, meta) VALUES (?, ?, ?, ?)'
+  );
+  $stmt->execute([
+    $adminId,
+    $targetId,
+    $action,
+    $meta ? json_encode($meta) : null,
+  ]);
+}
+
+/** Ensure activity_events exists on older installs (CREATE IF NOT EXISTS). */
+function ensure_activity_schema(): void {
+  static $done = false;
+  if ($done) return;
+  $done = true;
+  $pdo = db();
+  if (db_driver() === 'sqlite') {
+    $pdo->exec(
+      "CREATE TABLE IF NOT EXISTS activity_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NULL,
+        username TEXT NULL,
+        action TEXT NOT NULL,
+        detail TEXT NULL,
+        meta TEXT NULL,
+        ip TEXT NULL,
+        user_agent TEXT NULL,
+        country TEXT NULL,
+        region TEXT NULL,
+        city TEXT NULL,
+        timezone TEXT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+      )"
+    );
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_events(created_at)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_events(user_id)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_activity_action ON activity_events(action)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_activity_ip ON activity_events(ip)');
+    return;
+  }
+
+  $pdo->exec(
+    "CREATE TABLE IF NOT EXISTS activity_events (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id INT UNSIGNED NULL,
+      username VARCHAR(80) NULL,
+      action VARCHAR(64) NOT NULL,
+      detail VARCHAR(255) NULL,
+      meta TEXT NULL,
+      ip VARCHAR(64) NULL,
+      user_agent VARCHAR(500) NULL,
+      country VARCHAR(80) NULL,
+      region VARCHAR(120) NULL,
+      city VARCHAR(120) NULL,
+      timezone VARCHAR(80) NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_activity_created (created_at),
+      INDEX idx_activity_user (user_id),
+      INDEX idx_activity_action (action),
+      INDEX idx_activity_ip (ip),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+  );
+}
+
+function client_ip(): string {
+  $candidates = [
+    $_SERVER['HTTP_CF_CONNECTING_IP'] ?? '',
+    $_SERVER['HTTP_TRUE_CLIENT_IP'] ?? '',
+    $_SERVER['HTTP_X_REAL_IP'] ?? '',
+    '',
+  ];
+  $xff = (string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? '');
+  if ($xff !== '') {
+    $first = trim(explode(',', $xff)[0]);
+    $candidates[] = $first;
+  }
+  $candidates[] = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+
+  foreach ($candidates as $ip) {
+    $ip = trim((string)$ip);
+    if ($ip !== '' && filter_var($ip, FILTER_VALIDATE_IP)) {
+      return $ip;
+    }
+  }
+  return '';
+}
+
+function client_user_agent(): string {
+  $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
+  if (strlen($ua) > 480) $ua = substr($ua, 0, 480);
+  return $ua;
+}
+
+/**
+ * Best-effort location: Cloudflare country header, then optional ip-api lookup.
+ * Never blocks the request for more than ~1s.
+ */
+function resolve_location(string $ip, ?string $timezoneHint = null): array {
+  $country = trim((string)($_SERVER['HTTP_CF_IPCOUNTRY'] ?? ''));
+  if ($country === 'XX' || $country === 'T1') $country = '';
+  $region = '';
+  $city = '';
+  $timezone = $timezoneHint ? substr(trim($timezoneHint), 0, 80) : '';
+
+  $private = $ip === '' || !filter_var(
+    $ip,
+    FILTER_VALIDATE_IP,
+    FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+  );
+
+  if (!$private && ($country === '' || $city === '')) {
+    $geo = lookup_ip_geo($ip);
+    if ($geo) {
+      if ($country === '' && !empty($geo['country'])) $country = (string)$geo['country'];
+      if (!empty($geo['region'])) $region = (string)$geo['region'];
+      if (!empty($geo['city'])) $city = (string)$geo['city'];
+      if ($timezone === '' && !empty($geo['timezone'])) $timezone = (string)$geo['timezone'];
+    }
+  }
+
+  if ($private && $country === '') {
+    $country = 'Local';
+  }
+
+  return [
+    'country' => $country !== '' ? substr($country, 0, 80) : null,
+    'region' => $region !== '' ? substr($region, 0, 120) : null,
+    'city' => $city !== '' ? substr($city, 0, 120) : null,
+    'timezone' => $timezone !== '' ? substr($timezone, 0, 80) : null,
+  ];
+}
+
+function lookup_ip_geo(string $ip): ?array {
+  static $cache = [];
+  if (isset($cache[$ip])) return $cache[$ip];
+
+  $url = 'http://ip-api.com/json/' . rawurlencode($ip) . '?fields=status,country,regionName,city,timezone';
+  $ctx = stream_context_create([
+    'http' => [
+      'method' => 'GET',
+      'timeout' => 1.2,
+      'ignore_errors' => true,
+      'header' => "Accept: application/json\r\n",
+    ],
+  ]);
+  $raw = @file_get_contents($url, false, $ctx);
+  if ($raw === false || $raw === '') {
+    $cache[$ip] = null;
+    return null;
+  }
+  $data = json_decode($raw, true);
+  if (!is_array($data) || ($data['status'] ?? '') !== 'success') {
+    $cache[$ip] = null;
+    return null;
+  }
+  $out = [
+    'country' => $data['country'] ?? null,
+    'region' => $data['regionName'] ?? null,
+    'city' => $data['city'] ?? null,
+    'timezone' => $data['timezone'] ?? null,
+  ];
+  $cache[$ip] = $out;
+  return $out;
+}
+
+/**
+ * Platform activity log — logins, actions, IP, location.
+ * Safe to call even if schema was just created.
+ */
+function log_activity(
+  string $action,
+  ?array $user = null,
+  ?string $detail = null,
+  ?array $meta = null,
+  ?string $timezoneHint = null,
+): void {
+  try {
+    ensure_activity_schema();
+    $ip = client_ip();
+    $geo = resolve_location($ip, $timezoneHint ?? ($meta['timezone'] ?? null));
+    $username = null;
+    $userId = null;
+    if ($user) {
+      $userId = isset($user['id']) ? (int)$user['id'] : null;
+      $username = isset($user['username']) ? (string)$user['username'] : null;
+    } elseif (isset($meta['username'])) {
+      $username = (string)$meta['username'];
+    }
+
+    $stmt = db()->prepare(
+      'INSERT INTO activity_events
+        (user_id, username, action, detail, meta, ip, user_agent, country, region, city, timezone)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    );
+    $stmt->execute([
+      $userId,
+      $username,
+      substr($action, 0, 64),
+      $detail !== null ? substr($detail, 0, 255) : null,
+      $meta ? json_encode($meta, JSON_UNESCAPED_SLASHES) : null,
+      $ip !== '' ? substr($ip, 0, 64) : null,
+      client_user_agent() ?: null,
+      $geo['country'],
+      $geo['region'],
+      $geo['city'],
+      $geo['timezone'],
+    ]);
+  } catch (Throwable $e) {
+    // Never break product flows because logging failed
+  }
+}
+
+function format_location(?string $city, ?string $region, ?string $country, ?string $timezone = null): string {
+  $parts = array_values(array_filter([$city, $region, $country], static fn($x) => $x !== null && $x !== ''));
+  $loc = $parts ? implode(', ', $parts) : 'Unknown';
+  if ($timezone) $loc .= ' · ' . $timezone;
+  return $loc;
+}
+
+function extend_paid_until(?string $current, int $days): string {
+  $base = time();
+  if ($current) {
+    $t = strtotime($current);
+    if ($t > $base) $base = $t;
+  }
+  return date('Y-m-d H:i:s', $base + ($days * 86400));
+}

@@ -1,0 +1,169 @@
+.generate-panel h2 {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1a1630;
+}
+
+.generate-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  color: #8a849e;
+  line-height: 1.4;
+}
+
+.device-meta {
+  margin: 0.35rem 0 0;
+  font-size: 0.68rem;
+  color: #9a94ad;
+  line-height: 1.35;
+}
+
+.theme-toggle-wrap {
+  margin: 0.45rem 0 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.theme-toggle-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #2d2940;
+}
+
+.theme-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  padding: 0.25rem;
+  border: 1px solid #d9d4e8;
+  border-radius: 10px;
+  background: #ece8f8;
+}
+
+.theme-btn {
+  appearance: none;
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 0.4rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #6b6680;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.theme-btn:hover {
+  color: #2d2940;
+}
+
+.theme-btn.active {
+  background: #5b3fd6;
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(40, 30, 80, 0.18);
+}
+
+.chrome-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem 0.5rem;
+  margin-top: 0.15rem;
+}
+
+.chrome-controls .generate-field {
+  margin-bottom: 0;
+}
+
+.chrome-controls .side-check {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #2d2940;
+  margin-top: 0.15rem;
+}
+
+.chrome-controls .side-check input {
+  width: 14px;
+  height: 14px;
+  accent-color: #5b3fd6;
+}
+
+.generate-fill {
+  width: 100%;
+  margin-bottom: 0.75rem;
+  appearance: none;
+  border: 1px solid #e6e4ef;
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #5b3fd6;
+  cursor: pointer;
+}
+
+.generate-group {
+  margin-bottom: 0.85rem;
+}
+
+.generate-group h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.68rem;
+  font-family: var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a849e;
+}
+
+.generate-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.45rem;
+}
+
+.generate-field > span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #2d2940;
+}
+
+.generate-field input,
+.generate-field select {
+  font: inherit;
+  font-size: 0.82rem;
+  border: 1px solid #e6e4ef;
+  border-radius: 8px;
+  padding: 0.42rem 0.5rem;
+  background: #faf9ff;
+  color: #1a1630;
+}
+
+.generate-cta {
+  width: 100%;
+  margin-top: 0.35rem;
+  appearance: none;
+  border: none;
+  background: #0d7a4f;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.7rem;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.generate-cta:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.generate-cta:hover:not(:disabled) {
+  background: #0a6541;
+}
