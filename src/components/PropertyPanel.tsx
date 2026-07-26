@@ -12,6 +12,8 @@ interface Props {
     fontSize: number
     fill: string
     fontWeight: string | number
+    textAlign: string
+    opacity: number
     role: TextRole
     fieldKey: FieldKey
   }>) => void
@@ -109,6 +111,31 @@ export function PropertyPanel({ selected, palette, onChange }: Props) {
             <option value="400">Regular</option>
             <option value="700">Bold</option>
           </select>
+        </label>
+      </div>
+
+      <div className="field-row">
+        <label className="field">
+          <span>Align</span>
+          <select
+            value={selected.textAlign ?? 'left'}
+            onChange={(e) => onChange({ textAlign: e.target.value })}
+          >
+            <option value="left">Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
+          </select>
+        </label>
+        <label className="field">
+          <span>Opacity</span>
+          <input
+            type="range"
+            min={0.1}
+            max={1}
+            step={0.05}
+            value={selected.opacity ?? 1}
+            onChange={(e) => onChange({ opacity: Number(e.target.value) })}
+          />
         </label>
       </div>
 

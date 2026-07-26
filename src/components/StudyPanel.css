@@ -1,3 +1,25 @@
+.study-empty {
+  margin: 0.25rem 0 0.85rem;
+  padding: 0.75rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid var(--line, #e6e4ef);
+  background: var(--surface-2, #f4f2fa);
+}
+
+.study-empty-title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink, #1a1630);
+}
+
+.study-empty-body {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--muted, #8a849e);
+}
+
 .study-panel h2 {
   margin: 0 0 0.35rem;
   font-size: 0.95rem;

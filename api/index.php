@@ -84,6 +84,7 @@ function route(string $method, string $path): void {
 }
 
 function handle_register(): void {
+  rate_limit('register', 8, 600);
   $body = json_input();
   $username = normalize_username((string)($body['username'] ?? $body['email'] ?? ''));
   $password = (string)($body['password'] ?? '');
@@ -116,6 +117,7 @@ function handle_register(): void {
 }
 
 function handle_login(): void {
+  rate_limit('login', 20, 300);
   $body = json_input();
   $login = (string)($body['username'] ?? $body['email'] ?? '');
   $password = (string)($body['password'] ?? '');
@@ -483,6 +485,9 @@ function handle_admin_user_update(): void {
 
   if (isset($body['status']) && in_array($body['status'], ['active', 'banned'], true)) {
     db()->prepare('UPDATE users SET status = ? WHERE id = ?')->execute([$body['status'], $userId]);
+    if ($body['status'] === 'banned') {
+      revoke_user_sessions($userId);
+    }
   }
   if (isset($body['role']) && in_array($body['role'], ['user', 'admin'], true)) {
     db()->prepare('UPDATE users SET role = ? WHERE id = ?')->execute([$body['role'], $userId]);
@@ -497,6 +502,7 @@ function handle_admin_user_update(): void {
     if (strlen($password) < 8) fail('Password must be at least 8 characters');
     $hash = password_hash($password, PASSWORD_DEFAULT);
     db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')->execute([$hash, $userId]);
+    revoke_user_sessions($userId);
   }
   if (array_key_exists('paid_until', $body)) {
     $val = $body['paid_until'];

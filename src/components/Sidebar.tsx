@@ -80,6 +80,7 @@ interface Props {
   onShowFrameChange?: (v: boolean) => void
   exportGrain?: boolean
   onExportGrainChange?: (v: boolean) => void
+  composing?: boolean
 }
 
 function pickImageFile(files: FileList | null | undefined): File | null {
@@ -134,6 +135,7 @@ export function Sidebar(props: Props) {
     onShowFrameChange,
     exportGrain,
     onExportGrainChange,
+    composing,
   } = props
 
   const [primary, setPrimary] = useState<PrimaryTab>('generate')
@@ -400,6 +402,7 @@ export function Sidebar(props: Props) {
               onRefresh={onRefreshPreview}
               fieldKeys={fieldKeys}
               live
+              composing={composing}
             />
             {onShowFrameChange ? (
               <label className="side-toggle">

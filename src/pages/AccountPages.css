@@ -2,9 +2,9 @@
   min-height: 100vh;
   padding: 1.25rem 1.5rem 2.5rem;
   background:
-    radial-gradient(circle at 12% 0%, rgba(47, 107, 79, 0.1), transparent 36%),
-    #ebe8e2;
-  color: #1c1a22;
+    radial-gradient(circle at 18% 0%, rgba(122, 90, 248, 0.12), transparent 40%),
+    var(--bg, #e9e8ef);
+  color: var(--ink, #1a1630);
 }
 
 .account-header {
@@ -77,10 +77,73 @@
 }
 
 .plan-card {
-  border: 1px solid #e6e2da;
+  border: 1px solid var(--line, #e6e4ef);
   border-radius: 12px;
   padding: 0.9rem;
-  background: #fafaf8;
+  background: var(--surface-2, #faf9ff);
+  position: relative;
+}
+
+.plan-recommended {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.plan-badge {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--accent-strong);
+  border-radius: 999px;
+  padding: 0.18rem 0.45rem;
+}
+
+.plan-skeleton {
+  min-height: 160px;
+  background: linear-gradient(90deg, #f4f2fa, #ebe8f5, #f4f2fa);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+.plan-perks {
+  margin: 0.55rem 0 0.75rem;
+  padding: 0 0 0 1rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.live-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.live-toggle input {
+  accent-color: var(--accent-strong);
+}
+
+.refresh-meta {
+  margin: -0.25rem 0 0.65rem;
+  font-size: 0.72rem;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
 
 .plan-card h3 {
@@ -120,8 +183,8 @@
 }
 
 .account-btn.primary {
-  background: #2f6b4f;
-  border-color: #2f6b4f;
+  background: var(--accent-strong, #5b3fd6);
+  border-color: var(--accent-strong, #5b3fd6);
   color: #fff;
   width: 100%;
 }

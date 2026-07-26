@@ -4,6 +4,8 @@ import { AuthScreen } from './auth/AuthScreen'
 import App from './App'
 import { BillingPage } from './pages/Billing'
 import { AdminPage } from './pages/Admin'
+import { ToastProvider } from './ui/Toast'
+import { ErrorBoundary } from './ui/ErrorBoundary'
 
 type View = 'studio' | 'billing' | 'admin'
 
@@ -13,17 +15,11 @@ function Gate() {
 
   if (loading) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'grid',
-          placeItems: 'center',
-          background: '#e8e6e1',
-          color: '#6b6680',
-          fontFamily: 'system-ui, sans-serif',
-        }}
-      >
-        Loading…
+      <div className="boot-shell" role="status" aria-live="polite">
+        <div className="boot-card">
+          <span className="boot-mark" aria-hidden />
+          <p className="boot-label">Loading Receipt Maker…</p>
+        </div>
       </div>
     )
   }
@@ -38,17 +34,23 @@ function Gate() {
   }
 
   return (
-    <App
-      onOpenBilling={() => setView('billing')}
-      onOpenAdmin={user.role === 'admin' ? () => setView('admin') : undefined}
-    />
+    <ErrorBoundary title="Studio crashed">
+      <App
+        onOpenBilling={() => setView('billing')}
+        onOpenAdmin={user.role === 'admin' ? () => setView('admin') : undefined}
+      />
+    </ErrorBoundary>
   )
 }
 
 export function Root() {
   return (
-    <AuthProvider>
-      <Gate />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <ToastProvider>
+          <Gate />
+        </ToastProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   )
 }

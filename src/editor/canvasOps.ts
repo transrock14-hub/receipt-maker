@@ -298,6 +298,8 @@ export function getSelectedProps(obj: FabricObject | undefined | null): Selected
       fontSize: t.fontSize,
       fill: typeof t.fill === 'string' ? t.fill : '#000',
       fontWeight: t.fontWeight,
+      textAlign: t.textAlign,
+      opacity: typeof t.opacity === 'number' ? t.opacity : 1,
       role: obj.get('receiptRole') as TextRole | undefined,
       fieldKey: obj.get('receiptFieldKey') as import('../types/receipt').FieldKey | undefined,
       confidence: obj.get('ocrConfidence') as number | undefined,
@@ -315,6 +317,8 @@ export function updateSelectedText(
     fontSize: number
     fill: string
     fontWeight: string | number
+    textAlign: string
+    opacity: number
     role: TextRole
     fieldKey: import('../types/receipt').FieldKey
   }>,
@@ -330,6 +334,8 @@ export function updateSelectedText(
   }
   if (patch.fill != null) obj.set('fill', patch.fill)
   if (patch.fontWeight != null) obj.set('fontWeight', patch.fontWeight)
+  if (patch.textAlign != null) obj.set('textAlign', patch.textAlign)
+  if (patch.opacity != null) obj.set('opacity', patch.opacity)
   if (patch.role != null) obj.set('receiptRole', patch.role)
   if (patch.fieldKey != null) obj.set('receiptFieldKey', patch.fieldKey)
   obj.setCoords()

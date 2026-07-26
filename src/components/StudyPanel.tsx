@@ -127,6 +127,16 @@ export function StudyPanel({
         />
       </label>
 
+      {studies.length === 0 && !studying ? (
+        <div className="study-empty">
+          <p className="study-empty-title">No personal screenshots yet</p>
+          <p className="study-empty-body">
+            Drop a Binance, Coinbase, or bank receipt above. We extract palette, time, battery, and
+            amounts locally — nothing leaves this browser.
+          </p>
+        </div>
+      ) : null}
+
       {studies.length > 0 && (
         <>
           <div className="study-toolbar">

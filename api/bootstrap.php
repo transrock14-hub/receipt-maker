@@ -409,6 +409,38 @@ function format_location(?string $city, ?string $region, ?string $country, ?stri
   return $loc;
 }
 
+function revoke_user_sessions(int $userId): void {
+  db()->prepare('DELETE FROM sessions WHERE user_id = ?')->execute([$userId]);
+}
+
+/** Simple IP rate limit using activity_events (best-effort, no extra tables). */
+function rate_limit(string $bucket, int $max, int $windowSeconds): void {
+  ensure_activity_schema();
+  $ip = client_ip() ?: 'unknown';
+  $action = 'rate_' . $bucket;
+  $sinceExpr = db_driver() === 'sqlite'
+    ? "datetime('now', '-{$windowSeconds} seconds')"
+    : "DATE_SUB(NOW(), INTERVAL {$windowSeconds} SECOND)";
+  try {
+    $stmt = db()->prepare(
+      "SELECT COUNT(*) c FROM activity_events WHERE action = ? AND ip = ? AND created_at >= {$sinceExpr}"
+    );
+    $stmt->execute([$action, $ip]);
+    $count = (int)($stmt->fetch()['c'] ?? 0);
+    if ($count >= $max) {
+      fail('Too many attempts. Please wait and try again.', 429);
+    }
+    // Record attempt slot (meta-less) — use log_activity path carefully to avoid recursion
+    $ins = db()->prepare(
+      'INSERT INTO activity_events (user_id, username, action, detail, meta, ip, user_agent, created_at)
+       VALUES (NULL, NULL, ?, ?, NULL, ?, ?, ' . sql_now() . ')'
+    );
+    $ins->execute([$action, $bucket, $ip, substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 400)]);
+  } catch (Throwable $e) {
+    // Never block auth if activity table missing mid-migration
+  }
+}
+
 function extend_paid_until(?string $current, int $days): string {
   $base = time();
   if ($current) {

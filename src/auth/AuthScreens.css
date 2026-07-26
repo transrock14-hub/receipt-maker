@@ -4,18 +4,19 @@
   place-items: center;
   padding: 1.5rem;
   background:
-    radial-gradient(circle at 20% 10%, rgba(45, 90, 60, 0.12), transparent 40%),
-    radial-gradient(circle at 80% 90%, rgba(30, 50, 90, 0.1), transparent 42%),
-    #e8e6e1;
+    radial-gradient(circle at 18% 12%, rgba(122, 90, 248, 0.16), transparent 42%),
+    radial-gradient(circle at 82% 88%, rgba(91, 63, 214, 0.1), transparent 40%),
+    var(--bg, #e9e8ef);
 }
 
 .auth-card {
   width: min(420px, 100%);
-  background: #fff;
-  border: 1px solid #ddd8d0;
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, #e6e4ef);
   border-radius: 16px;
   padding: 1.4rem 1.35rem 1.5rem;
-  box-shadow: 0 18px 50px rgba(20, 24, 20, 0.08);
+  box-shadow: var(--shadow-lg, 0 18px 50px rgba(26, 22, 48, 0.14));
+  animation: auth-rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .auth-brand {
@@ -29,7 +30,8 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: linear-gradient(145deg, #1a1a1e, #2f6b4f);
+  background: linear-gradient(160deg, var(--accent, #7a5af8), var(--accent-strong, #5b3fd6));
+  box-shadow: var(--shadow-sm);
 }
 
 .auth-brand h1 {
@@ -41,7 +43,7 @@
 .auth-brand p {
   margin: 0.1rem 0 0;
   font-size: 0.75rem;
-  color: #6b6680;
+  color: var(--muted, #8a849e);
 }
 
 .auth-tabs {
@@ -53,19 +55,19 @@
 
 .auth-tabs button {
   appearance: none;
-  border: 1px solid #e6e4ef;
-  background: #f7f6f3;
+  border: 1px solid var(--line, #e6e4ef);
+  background: var(--surface-2, #f4f2fa);
   border-radius: 10px;
   padding: 0.55rem;
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
-  color: #6b6680;
+  color: var(--muted, #8a849e);
 }
 
 .auth-tabs button.active {
-  background: #1a1a1e;
-  border-color: #1a1a1e;
+  background: var(--ink, #1a1630);
+  border-color: var(--ink, #1a1630);
   color: #fff;
 }
 
@@ -84,14 +86,88 @@
   color: #2d2940;
 }
 
-.auth-form input {
+.auth-form input[type='text'],
+.auth-form input[type='password'],
+.auth-password-row input {
   font: inherit;
   font-size: 0.9rem;
   font-weight: 400;
-  border: 1px solid #e0dcd4;
+  border: 1px solid var(--line, #e6e4ef);
   border-radius: 10px;
   padding: 0.55rem 0.65rem;
-  background: #fafaf8;
+  background: var(--surface-2, #faf9ff);
+  color: var(--ink);
+  width: 100%;
+}
+
+.auth-password-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.auth-show-pw {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 0 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-strong);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.auth-remember {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.45rem !important;
+  font-weight: 500 !important;
+  color: var(--muted) !important;
+}
+
+.auth-remember input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent-strong);
+}
+
+.auth-strength {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.auth-strength-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.auth-strength-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+.auth-strength-bar[data-score='1'] span,
+.auth-strength-bar[data-score='2'] span {
+  background: var(--danger);
+}
+
+.auth-strength-bar[data-score='3'] span {
+  background: var(--warning);
+}
+
+.auth-strength-bar[data-score='4'] span,
+.auth-strength-bar[data-score='5'] span {
+  background: var(--success);
 }
 
 .auth-submit {
@@ -100,10 +176,14 @@
   border: none;
   border-radius: 10px;
   padding: 0.7rem;
-  background: #2f6b4f;
+  background: var(--accent-strong, #5b3fd6);
   color: #fff;
   font-weight: 700;
   cursor: pointer;
+}
+
+.auth-submit:hover:not(:disabled) {
+  background: var(--accent, #7a5af8);
 }
 
 .auth-submit:disabled {
@@ -113,7 +193,7 @@
 
 .auth-error {
   margin: 0;
-  color: #b42318;
+  color: var(--danger, #b42318);
   font-size: 0.8rem;
 }
 
@@ -121,5 +201,16 @@
   margin: 1rem 0 0;
   font-size: 0.72rem;
   line-height: 1.4;
-  color: #8a849e;
+  color: var(--muted, #8a849e);
+}
+
+@keyframes auth-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

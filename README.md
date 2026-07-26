@@ -1,25 +1,31 @@
 # Receipt Maker
 
-Web app to upload or paste a receipt photo, extract text / colors / approximate fonts into editable layers, edit the receipt, export PNG, and save reusable templates.
+Screenshot studio for wallet & bank receipt mockups. Generate device-accurate screens across crypto, banks, fintech, and mobile money — with live preview, light/dark themes, and export/copy.
+
+Live: [codecircuit.space](https://codecircuit.space/)
 
 ## Run
 
 ```bash
 npm install
-npm run dev
+npm run setup:local   # SQLite API + demo admin
+npm run dev           # Vite (frontend)
+npm run dev:api       # PHP API on :8080
 ```
 
-Open the local URL Vite prints (usually `http://localhost:5173`).
+Open the Vite URL (usually `http://localhost:5173`).
 
-## Use
+## Studio highlights
 
-1. **Upload** or **paste** (⌘/Ctrl+V) a receipt image
-2. Click **Analyze text** to run OCR and create editable text layers
-3. Click any line to change content, font, size, color, or template role
-4. Toggle **Hide original text** to cover the printed text under editable layers
-5. **Export PNG** or **Save template** for reuse
-6. Open a template from the left panel (starter blank receipt included)
+- **Generate** — 16 institution screens × 19 devices, status-bar chrome, Light/Dark theme
+- **Study** — research kits + OCR study of your own screenshots
+- **Editor** — Fabric canvas, layers, properties, keyboard shortcuts (`?`)
+- **Billing** — trial + USDT plans; Admin platform monitor for logins/IPs/actions
 
 ## Stack
 
-Vite · React · TypeScript · Fabric.js · Tesseract.js · localStorage templates
+Vite · React · TypeScript · Fabric.js · Tesseract.js · PHP API (MySQL / SQLite) · IndexedDB
+
+## Deploy
+
+See `DEPLOY-CODECIRCUIT.md` and `HOSTINGER.md`. Secrets stay in `api/config.local.php` (gitignored).

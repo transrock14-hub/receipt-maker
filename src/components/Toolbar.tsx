@@ -16,6 +16,8 @@ interface Props {
   canDownload?: boolean
   userLabel?: string
   isAdmin?: boolean
+  accessLabel?: string
+  accessTone?: 'ok' | 'warn' | 'locked'
   onUpload: (file: File) => void
   onAnalyze: () => void
   onExport: () => void
@@ -41,6 +43,7 @@ interface Props {
   onOpenBilling?: () => void
   onOpenAdmin?: () => void
   onLogout?: () => void
+  onOpenShortcuts?: () => void
 }
 
 export function Toolbar(props: Props) {
@@ -148,6 +151,26 @@ export function Toolbar(props: Props) {
         </button>
         {(props.onOpenBilling || props.onLogout) && (
           <div className="tool-group account-group">
+            {props.accessLabel && (
+              <button
+                type="button"
+                className={`access-badge access-${props.accessTone || 'ok'}`}
+                onClick={props.onOpenBilling}
+                title="Open billing"
+              >
+                {props.accessLabel}
+              </button>
+            )}
+            {props.onOpenShortcuts && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={props.onOpenShortcuts}
+                title="Keyboard shortcuts (?)"
+              >
+                ?
+              </button>
+            )}
             {props.onOpenBilling && (
               <button type="button" className="btn btn-ghost" onClick={props.onOpenBilling} title="Billing">
                 Billing

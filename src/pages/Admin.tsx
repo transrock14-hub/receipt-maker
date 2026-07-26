@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { api, type ActivityEvent, type AuthUser } from '../auth/api'
 import { useAuth } from '../auth/AuthContext'
+import { useToast } from '../ui/Toast'
 import './AccountPages.css'
 
 type Props = {
@@ -39,6 +40,7 @@ function actionLabel(action: string): string {
 
 export function AdminPage({ onBack }: Props) {
   const { logout } = useAuth()
+  const toast = useToast()
   const [users, setUsers] = useState<AuthUser[]>([])
   const [payments, setPayments] = useState<Array<Record<string, unknown>>>([])
   const [activity, setActivity] = useState<ActivityEvent[]>([])
@@ -63,6 +65,8 @@ export function AdminPage({ onBack }: Props) {
   const [creating, setCreating] = useState(false)
   const [credentials, setCredentials] = useState<Credentials | null>(null)
   const [copied, setCopied] = useState(false)
+  const [liveRefresh, setLiveRefresh] = useState(true)
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
   const [newName, setNewName] = useState('')
   const [newUsername, setNewUsername] = useState('')
@@ -90,17 +94,30 @@ export function AdminPage({ onBack }: Props) {
       setPayments(p.payments)
       setStats(s.stats)
       setError(null)
+      setLastRefresh(new Date())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Admin load failed')
     }
   }, [])
 
-  useEffect(() => {
-    void load()
-    void loadActivity().catch((err) =>
+  const refreshAll = useCallback(async () => {
+    await load(q || undefined)
+    await loadActivity(activityQ || undefined, activityAction).catch((err) =>
       setError(err instanceof Error ? err.message : 'Activity load failed'),
     )
-  }, [load, loadActivity])
+  }, [load, loadActivity, q, activityQ, activityAction])
+
+  useEffect(() => {
+    void refreshAll()
+  }, [refreshAll])
+
+  useEffect(() => {
+    if (!liveRefresh) return
+    const id = window.setInterval(() => {
+      void refreshAll()
+    }, 30000)
+    return () => window.clearInterval(id)
+  }, [liveRefresh, refreshAll])
 
   const updateUser = async (
     id: number,
@@ -111,8 +128,12 @@ export function AdminPage({ onBack }: Props) {
       const res = await api.adminUpdateUser({ user_id: id, ...patch })
       if (res.credentials) setCredentials(res.credentials)
       await load(q || undefined)
+      if (patch.status === 'banned') toast.success('User banned · sessions revoked')
+      else if (patch.password) toast.success('Password reset · sessions revoked')
+      else if (patch.extend_days) toast.success(`Extended +${patch.extend_days} days`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Update failed')
+      toast.error(err instanceof Error ? err.message : 'Update failed')
     } finally {
       setBusyId(null)
     }
@@ -136,8 +157,10 @@ export function AdminPage({ onBack }: Props) {
       setNewPassword(randomPassword())
       setPaidDays(30)
       await load(q || undefined)
+      toast.success('Account created')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Create failed')
+      toast.error(err instanceof Error ? err.message : 'Create failed')
     } finally {
       setCreating(false)
     }
@@ -156,6 +179,7 @@ export function AdminPage({ onBack }: Props) {
     try {
       await navigator.clipboard.writeText(text)
       setCopied(true)
+      toast.success('Login details copied')
     } catch {
       setError('Could not copy — select the details manually')
     }
@@ -254,16 +278,27 @@ export function AdminPage({ onBack }: Props) {
             <button
               type="button"
               className="account-btn"
-              onClick={() =>
-                void loadActivity(activityQ || undefined, activityAction).catch((err) =>
-                  setError(err instanceof Error ? err.message : 'Refresh failed'),
-                )
-              }
+              onClick={() => void refreshAll()}
             >
               Refresh
             </button>
+            <label className="live-toggle">
+              <input
+                type="checkbox"
+                checked={liveRefresh}
+                onChange={(e) => setLiveRefresh(e.target.checked)}
+              />
+              Live 30s
+            </label>
           </form>
         </div>
+
+        {lastRefresh && (
+          <p className="muted refresh-meta">
+            Updated {lastRefresh.toLocaleTimeString()}
+            {liveRefresh ? ' · auto-refresh on' : ''}
+          </p>
+        )}
 
         {activitySummary && (
           <div className="monitor-summary">

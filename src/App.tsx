@@ -47,6 +47,8 @@ import {
   upsertTemplate,
 } from './templates/db'
 import { templateFromCanvas } from './templates/storage'
+import { useToast } from './ui/Toast'
+import { ShortcutsModal } from './ui/ShortcutsModal'
 import { composeScreenshot } from './catalog/compose'
 import {
   exportDeviceScreenshot,
@@ -98,6 +100,7 @@ type AppProps = {
 
 function App({ onOpenBilling, onOpenAdmin }: AppProps) {
   const { user, logout } = useAuth()
+  const toast = useToast()
   const canDownload = Boolean(user?.access.can_download)
   const canvasRef = useRef<Canvas | null>(null)
   const historyRef = useRef(new EditorHistory())
@@ -137,6 +140,8 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
   const [studying, setStudying] = useState(false)
   const [studyProgress, setStudyProgress] = useState('')
   const [composeLive, setComposeLive] = useState(true)
+  const [composing, setComposing] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [bootReady, setBootReady] = useState(false)
   const [showFrame, setShowFrame] = useState(false)
   const [framedPreviewUrl, setFramedPreviewUrl] = useState<string | null>(null)
@@ -409,6 +414,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
     } catch (err) {
       console.error(err)
       setStatus('Magic Edit failed. Try a clearer photo, or click Magic Edit again.')
+      toast.error('Magic Edit failed — try a clearer photo.')
     } finally {
       setAnalyzing(false)
       setProgress('')
@@ -536,6 +542,8 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
       fontSize: number
       fill: string
       fontWeight: string | number
+      textAlign: string
+      opacity: number
       role: TextRole
       fieldKey: FieldKey
     }>) => {
@@ -587,6 +595,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
         ? `Downloaded framed ${device.name} PNG${exportGrain ? ' · grain' : ''}.`
         : `Downloaded ${device.name} phone screenshot${exportGrain ? ' · grain' : ''}.`,
     )
+    toast.success('Download started')
   }, [
     deviceId,
     institutionId,
@@ -595,6 +604,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
     canDownload,
     onOpenBilling,
     prepareCapture,
+    toast,
   ])
 
   const handleCopyScreenshot = useCallback(async () => {
@@ -614,8 +624,10 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
         institutionId,
       })
       setStatus(`Copied ${device.name} phone screenshot to clipboard.`)
+      toast.success('Screenshot copied')
     } catch (err) {
       setStatus(err instanceof Error ? err.message : 'Copy failed')
+      toast.error(err instanceof Error ? err.message : 'Copy failed')
     }
   }, [deviceId, institutionId, exportGrain, canDownload, onOpenBilling, prepareCapture])
 
@@ -710,6 +722,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
     if (!name) return
     await persistCurrentProject(name)
     setStatus(`Saved “${name}” to Projects. Kept until you delete it.`)
+    toast.success(`Saved “${name}”`)
   }, [currentProjectId, persistCurrentProject, projects])
 
   const handleSaveTemplate = useCallback(async () => {
@@ -832,8 +845,9 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
   // Live Generate preview — debounced recompose on form / device / institution change
   useEffect(() => {
     if (!bootReady || !composeLive) return
+    setComposing(true)
     const t = window.setTimeout(() => {
-      void applyComposeToCanvas({ silent: false })
+      void applyComposeToCanvas({ silent: false }).finally(() => setComposing(false))
     }, 280)
     return () => window.clearTimeout(t)
   }, [bootReady, composeLive, applyComposeToCanvas])
@@ -874,6 +888,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
       { institutionId, devices },
     )
     setStatus(`Batch exported ${devices.length} phone screenshot(s).`)
+    toast.success(`Exported ${devices.length} screenshots`)
   }, [
     institutionId,
     generateValues,
@@ -1071,7 +1086,15 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
         target &&
         (target.tagName === 'INPUT' ||
           target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
           target.isContentEditable)
+
+      if (!typing && (e.key === '?' || (e.shiftKey && e.key === '/'))) {
+        e.preventDefault()
+        setShortcutsOpen(true)
+        return
+      }
+      if (e.key === 'Escape') setShortcutsOpen(false)
 
       const meta = e.metaKey || e.ctrlKey
 
@@ -1188,6 +1211,31 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
     refreshSelection,
   ])
 
+  const accessBadge = useMemo(() => {
+    const access = user?.access
+    if (!access) return { label: undefined as string | undefined, tone: 'ok' as const }
+    if (access.paid_active) {
+      const until = access.paid_until ? new Date(access.paid_until) : null
+      const days = until
+        ? Math.max(0, Math.ceil((until.getTime() - Date.now()) / 86400000))
+        : null
+      return {
+        label: days != null ? `Paid · ${days}d` : 'Paid',
+        tone: 'ok' as const,
+      }
+    }
+    if (access.trial_active && access.trial_ends_at) {
+      const ends = new Date(access.trial_ends_at)
+      const days = Math.max(0, Math.ceil((ends.getTime() - Date.now()) / 86400000))
+      const hours = Math.max(0, Math.ceil((ends.getTime() - Date.now()) / 3600000))
+      return {
+        label: days > 0 ? `Trial · ${days}d left` : `Trial · ${hours}h left`,
+        tone: days <= 1 ? ('warn' as const) : ('ok' as const),
+      }
+    }
+    return { label: 'Locked', tone: 'locked' as const }
+  }, [user?.access])
+
   return (
     <div className="app-shell">
       <Toolbar
@@ -1205,6 +1253,8 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
         canDownload={canDownload}
         userLabel={user?.username}
         isAdmin={user?.role === 'admin'}
+        accessLabel={accessBadge.label}
+        accessTone={accessBadge.tone}
         onUpload={handleUpload}
         onAnalyze={handleAnalyze}
         onExport={() => void handleExport()}
@@ -1247,7 +1297,10 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
         onOpenBilling={onOpenBilling}
         onOpenAdmin={onOpenAdmin}
         onLogout={() => void logout()}
+        onOpenShortcuts={() => setShortcutsOpen(true)}
       />
+
+      <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
       <div className="workspace">
         <Sidebar
@@ -1310,6 +1363,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
           onShowFrameChange={setShowFrame}
           exportGrain={exportGrain}
           onExportGrainChange={setExportGrain}
+          composing={composing}
         />
         <ScreenshotStage
           analyzing={analyzing}

@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import type { DeviceId, FieldKey, GenerateValues, InstitutionCategory } from '../types/receipt'
 import { FIELD_DEFS } from '../types/receipt'
 import { DEVICES, devicesByManufacturer } from '../catalog/devices'
@@ -20,18 +21,25 @@ interface Props {
   onRefresh?: () => void
   fieldKeys?: FieldKey[]
   live?: boolean
+  composing?: boolean
 }
 
 const CATEGORY_LABEL: Record<InstitutionCategory, string> = {
   crypto: 'Crypto',
   bank: 'Banks',
-  fintech: 'Fintech / P2P',
-  mobile: 'Mobile money',
+  fintech: 'Fintech',
+  mobile: 'Mobile',
   thermal: 'Thermal',
   custom: 'Custom',
 }
 
 const MANUFACTURER_ORDER = ['Apple', 'Samsung', 'Google', 'Xiaomi', 'OnePlus', 'Microsoft']
+
+function clampBattery(raw: string): string {
+  const n = Number.parseInt(raw.replace(/%/g, ''), 10)
+  if (Number.isNaN(n)) return raw
+  return String(Math.max(0, Math.min(100, n)))
+}
 
 export function GeneratePanel({
   values,
@@ -47,12 +55,16 @@ export function GeneratePanel({
   onRefresh,
   fieldKeys,
   live = true,
+  composing = false,
 }: Props) {
   const set = (key: keyof GenerateValues, value: string) => {
     onChange({ ...values, [key]: value })
   }
 
   const institution = getInstitution(institutionId)
+  const [categoryFilter, setCategoryFilter] = useState<InstitutionCategory | 'all'>(
+    institution.category,
+  )
   const allowed = fieldKeys?.length ? new Set(fieldKeys) : null
   const recommended = institution.recommendedDeviceIds
   const onRecommended = recommended.includes(deviceId)
@@ -68,23 +80,34 @@ export function GeneratePanel({
     { id: 'transaction', title: 'Transaction' },
   ] as const
 
-  const byCategory = INSTITUTIONS.reduce(
-    (acc, inst) => {
-      if (!acc[inst.category]) acc[inst.category] = []
-      acc[inst.category].push(inst)
-      return acc
-    },
-    {} as Record<string, typeof INSTITUTIONS>,
-  )
+  const filteredInstitutions = useMemo(() => {
+    if (categoryFilter === 'all') return INSTITUTIONS
+    return INSTITUTIONS.filter((i) => i.category === categoryFilter)
+  }, [categoryFilter])
+
+  const categories = useMemo(() => {
+    const setCats = new Set(INSTITUTIONS.map((i) => i.category))
+    return (['crypto', 'bank', 'fintech', 'mobile', 'thermal'] as InstitutionCategory[]).filter(
+      (c) => setCats.has(c),
+    )
+  }, [])
 
   const chargingOn =
     values.charging === '1' ||
     values.charging === 'true' ||
     /charg/i.test(values.battery || '')
 
+  const batteryPct = (() => {
+    const n = Number.parseInt(String(values.battery || '87').replace(/%/g, ''), 10)
+    return Number.isNaN(n) ? 87 : Math.max(0, Math.min(100, n))
+  })()
+
   return (
     <div className="generate-panel">
-      <h2>Generate screenshot</h2>
+      <div className="generate-heading">
+        <h2>Generate screenshot</h2>
+        {composing ? <span className="generate-live-pill">Updating…</span> : null}
+      </div>
       <p className="generate-hint">
         {live ? (
           <>
@@ -104,6 +127,24 @@ export function GeneratePanel({
 
       <section className="generate-group">
         <h3>Device</h3>
+        {recommended.length > 0 && (
+          <div className="chip-row" role="group" aria-label="Recommended devices">
+            {recommended.map((id) => {
+              const d = DEVICES.find((x) => x.id === id)
+              if (!d) return null
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className={deviceId === id ? 'chip active' : 'chip'}
+                  onClick={() => onDeviceChange(id)}
+                >
+                  {d.name.replace(/^iPhone /, 'iP ').replace(/ Ultra$/, ' U')}
+                </button>
+              )
+            })}
+          </div>
+        )}
         <label className="generate-field">
           <span>Phone / desktop</span>
           <select
@@ -158,23 +199,51 @@ export function GeneratePanel({
 
       <section className="generate-group">
         <h3>Wallet / bank</h3>
+        <div className="chip-row" role="group" aria-label="Institution category">
+          <button
+            type="button"
+            className={categoryFilter === 'all' ? 'chip active' : 'chip'}
+            onClick={() => setCategoryFilter('all')}
+          >
+            All
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              className={categoryFilter === cat ? 'chip active' : 'chip'}
+              onClick={() => setCategoryFilter(cat)}
+            >
+              {CATEGORY_LABEL[cat]}
+            </button>
+          ))}
+        </div>
         <label className="generate-field">
           <span>Institution screen</span>
           <select
             value={institutionId}
-            onChange={(e) => onInstitutionChange(e.target.value)}
+            onChange={(e) => {
+              const id = e.target.value
+              const next = getInstitution(id)
+              setCategoryFilter(next.category)
+              onInstitutionChange(id)
+            }}
           >
-            {Object.entries(byCategory).map(([cat, list]) => (
-              <optgroup key={cat} label={CATEGORY_LABEL[cat as InstitutionCategory] || cat}>
-                {list.map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {i.brand} — {i.name}
-                  </option>
-                ))}
-              </optgroup>
+            {filteredInstitutions.map((i) => (
+              <option key={i.id} value={i.id}>
+                {i.brand} — {i.name}
+              </option>
             ))}
+            {!filteredInstitutions.some((i) => i.id === institutionId) && (
+              <option value={institutionId}>
+                {institution.brand} — {institution.name}
+              </option>
+            )}
           </select>
         </label>
+        <p className="device-meta">
+          {CATEGORY_LABEL[institution.category]} · {institution.fields?.length || 'dynamic'} fields
+        </p>
       </section>
 
       {groups.map((g) => {
@@ -185,17 +254,65 @@ export function GeneratePanel({
         return (
           <section key={g.id} className="generate-group">
             <h3>{g.title}</h3>
-            {fields.map((f) => (
-              <label key={f.key} className="generate-field">
-                <span>{f.label}</span>
-                <input
-                  type="text"
-                  value={values[f.key] ?? ''}
-                  placeholder={f.placeholder}
-                  onChange={(e) => set(f.key, e.target.value)}
-                />
-              </label>
-            ))}
+            {fields.map((f) => {
+              if (f.key === 'battery') {
+                return (
+                  <label key={f.key} className="generate-field">
+                    <span>
+                      Battery · {batteryPct}%
+                    </span>
+                    <input
+                      type="range"
+                      min={1}
+                      max={100}
+                      value={batteryPct}
+                      onChange={(e) => set('battery', e.target.value)}
+                      onBlur={() => set('battery', clampBattery(values.battery || String(batteryPct)))}
+                    />
+                  </label>
+                )
+              }
+              if (f.key === 'time') {
+                return (
+                  <label key={f.key} className="generate-field">
+                    <span>{f.label}</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={values[f.key] ?? ''}
+                      placeholder={f.placeholder}
+                      onChange={(e) => set(f.key, e.target.value)}
+                    />
+                  </label>
+                )
+              }
+              if (f.key === 'amountFiat' || f.key === 'amountCrypto') {
+                return (
+                  <label key={f.key} className="generate-field">
+                    <span>{f.label}</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={values[f.key] ?? ''}
+                      placeholder={f.placeholder}
+                      onChange={(e) => set(f.key, e.target.value)}
+                      className="mono-input"
+                    />
+                  </label>
+                )
+              }
+              return (
+                <label key={f.key} className="generate-field">
+                  <span>{f.label}</span>
+                  <input
+                    type="text"
+                    value={values[f.key] ?? ''}
+                    placeholder={f.placeholder}
+                    onChange={(e) => set(f.key, e.target.value)}
+                  />
+                </label>
+              )
+            })}
             {g.id === 'device' ? (
               <div className="chrome-controls">
                 <label className="generate-field">

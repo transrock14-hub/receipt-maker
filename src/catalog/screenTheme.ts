@@ -24,8 +24,15 @@ export function defaultThemeForInstitution(institutionId: string): ScreenTheme {
   const kit = styleKitForInstitution(institutionId)
   if (kit?.layout?.darkChrome) return 'dark'
   // Cash App green is neither classic light nor dark — treat as light chrome ink target
-  if (institutionId === 'google-pay' || institutionId === 'metamask-activity') return 'dark'
-  if (institutionId === 'binance-withdrawal') return 'dark'
+  if (
+    institutionId === 'gpay-success' ||
+    institutionId === 'metamask-activity' ||
+    institutionId === 'binance-withdrawal' ||
+    institutionId === 'revolut-payment' ||
+    institutionId === 'stc-pay'
+  ) {
+    return 'dark'
+  }
   return 'light'
 }
 
@@ -216,6 +223,172 @@ const THEME_OVERRIDES: Record<string, Partial<Record<ScreenTheme, Partial<ThemeC
       success: '#9FE870',
       line: '#2A4A18',
       chromeInk: '#F5F7FA',
+    },
+  },
+  'venmo-payment': {
+    light: {
+      background: '#FFFFFF',
+      ink: '#2F3033',
+      muted: '#8B8C8F',
+      accent: '#008CFF',
+      success: '#008CFF',
+      line: '#E8E8EA',
+      chromeInk: '#2F3033',
+      palette: ['#FFFFFF', '#2F3033', '#008CFF', '#8B8C8F'],
+    },
+    dark: {
+      background: '#1C1D1F',
+      ink: '#F5F5F6',
+      muted: '#A0A1A4',
+      accent: '#3DA4FF',
+      success: '#3DA4FF',
+      line: '#2E2F32',
+      chromeInk: '#F5F5F6',
+      palette: ['#1C1D1F', '#F5F5F6', '#3DA4FF', '#A0A1A4'],
+    },
+  },
+  'gpay-success': {
+    light: {
+      background: '#FFFFFF',
+      ink: '#202124',
+      muted: '#5F6368',
+      accent: '#1A73E8',
+      success: '#1E8E3E',
+      line: '#E8EAED',
+      chromeInk: '#202124',
+    },
+    dark: {
+      background: '#202124',
+      ink: '#E8EAED',
+      muted: '#9AA0A6',
+      accent: '#8AB4F8',
+      success: '#81C995',
+      line: '#3C4043',
+      chromeInk: '#E8EAED',
+      palette: ['#202124', '#E8EAED', '#8AB4F8', '#81C995'],
+    },
+  },
+  'boa-transfer': {
+    light: {
+      background: '#FFFFFF',
+      ink: '#012169',
+      muted: '#6B7280',
+      accent: '#E31837',
+      success: '#0D7A3E',
+      line: '#E5E7EB',
+      chromeInk: '#012169',
+    },
+    dark: {
+      background: '#01153F',
+      ink: '#F5F7FA',
+      muted: '#A8B4C4',
+      accent: '#FF5A6E',
+      success: '#3DDC84',
+      line: '#1A2F5C',
+      chromeInk: '#F5F7FA',
+    },
+  },
+  'revolut-payment': {
+    light: {
+      background: '#FFFFFF',
+      ink: '#191C1F',
+      muted: '#8B9199',
+      accent: '#0666EB',
+      success: '#00B899',
+      line: '#EEF0F3',
+      chromeInk: '#191C1F',
+    },
+    dark: {
+      background: '#000000',
+      ink: '#FFFFFF',
+      muted: '#8B9199',
+      accent: '#0666EB',
+      success: '#00B899',
+      line: '#222526',
+      chromeInk: '#FFFFFF',
+      palette: ['#000000', '#FFFFFF', '#0666EB', '#00B899'],
+    },
+  },
+  'mpesa-confirm': {
+    light: {
+      background: '#FFFFFF',
+      ink: '#1A1A1A',
+      muted: '#6B7280',
+      accent: '#4CAF50',
+      success: '#4CAF50',
+      line: '#E5E7EB',
+      chromeInk: '#1A1A1A',
+    },
+    dark: {
+      background: '#0F1A12',
+      ink: '#F2F7F3',
+      muted: '#9BB0A0',
+      accent: '#66BB6A',
+      success: '#66BB6A',
+      line: '#243328',
+      chromeInk: '#F2F7F3',
+    },
+  },
+  'mtn-momo': {
+    light: {
+      background: '#FFCC00',
+      ink: '#000000',
+      muted: 'rgba(0,0,0,0.65)',
+      accent: '#000000',
+      success: '#006600',
+      line: 'rgba(0,0,0,0.12)',
+      chromeInk: '#000000',
+    },
+    dark: {
+      background: '#1A1400',
+      ink: '#FFCC00',
+      muted: '#C4B570',
+      accent: '#FFCC00',
+      success: '#66BB6A',
+      line: '#3A3000',
+      chromeInk: '#FFCC00',
+    },
+  },
+  'stc-pay': {
+    light: {
+      background: '#FFFFFF',
+      ink: '#4F008C',
+      muted: '#6B7280',
+      accent: '#4F008C',
+      success: '#00A651',
+      line: '#EDE7F6',
+      chromeInk: '#4F008C',
+    },
+    dark: {
+      background: '#2A004D',
+      ink: '#FFFFFF',
+      muted: '#C4A8E0',
+      accent: '#C77DFF',
+      success: '#3DDC84',
+      line: '#3D1A66',
+      chromeInk: '#FFFFFF',
+    },
+  },
+  'thermal-store': {
+    light: {
+      background: '#F7F4EC',
+      ink: '#1C1B18',
+      muted: '#6B6680',
+      accent: '#1C1B18',
+      success: '#1C1B18',
+      line: '#D9D4C8',
+      chromeInk: '#1C1B18',
+      fontFamily: '"IBM Plex Mono", monospace',
+    },
+    dark: {
+      background: '#1C1B18',
+      ink: '#F7F4EC',
+      muted: '#A8A395',
+      accent: '#F7F4EC',
+      success: '#F7F4EC',
+      line: '#3A3830',
+      chromeInk: '#F7F4EC',
+      fontFamily: '"IBM Plex Mono", monospace',
     },
   },
 }

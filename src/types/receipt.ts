@@ -272,6 +272,8 @@ export interface SelectedObjectProps {
   fontSize?: number
   fill?: string
   fontWeight?: string | number
+  textAlign?: string
+  opacity?: number
   role?: TextRole
   fieldKey?: FieldKey
   confidence?: number
