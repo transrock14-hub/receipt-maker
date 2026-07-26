@@ -16,6 +16,7 @@ import {
   parseCryptoAmount,
   resolveNetwork,
 } from '../src/catalog/coins'
+import { wifiSize } from '../src/catalog/statusIcons'
 
 let passed = 0
 let failed = 0
@@ -169,6 +170,18 @@ check('charging adds green battery fill + bolt objects', () => {
   const wifi = objs(ios).find((o) => String(o.receiptId || '').startsWith('wfa'))
   if (!wifi || String(wifi.type).toLowerCase() !== 'path') {
     throw new Error('Wi‑Fi should use Path arcs')
+  }
+  // Solid fill bands (not stroked) — avoid the old center-seam bug
+  if (String(wifi.fill || '').includes('rgba(0,0,0,0)') || Number(wifi.strokeWidth || 0) > 0) {
+    throw new Error('Wi‑Fi arcs should be solid filled bands, not stroked curves')
+  }
+  if (wifiSize('oneui').width <= wifiSize('ios').width) {
+    throw new Error('One UI Wi‑Fi should be slightly wider than iOS')
+  }
+  const sam = composeScreenshot('s24-ultra', 'binance-withdrawal', {}, 'dark')
+  const samWifi = objs(sam).find((o) => String(o.receiptId || '') === 'wfa0')
+  if (!Array.isArray(samWifi?.path)) {
+    throw new Error('Wi‑Fi path should be Fabric command array')
   }
 })
 

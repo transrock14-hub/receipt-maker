@@ -472,8 +472,8 @@ function samsungStatus(
     objs.push(label('cellular', radio, iconTop + 0.2, radioLeft, 11, 700, font, ink))
   }
   objs.push(
-    ...drawSignal('sig', sigLeft, iconTop, ink, sigOpts).objs,
-    ...drawWifi('wf', wifiLeft, iconTop - 0.2, ink, mask, wifiLvl).objs,
+    ...drawSignal('sig', sigLeft, iconTop, ink, { ...sigOpts, style: 'oneui' }).objs,
+    ...drawWifi('wf', wifiLeft, iconTop - 0.2, ink, mask, wifiLvl, 'oneui').objs,
     textObj('battery', pctStr, iconTop - 0.2, pctLeft, 12, 600, 'battery', font, ink),
     ...drawBattery('batt', battLeft, iconTop + 0.35, pct, ink, 'oneui', { charging }).objs,
   )
@@ -520,8 +520,8 @@ function pixelStatus(
     objs.push(label('cellular', radio, iconTop + 0.2, radioLeft, 11, 600, font, ink))
   }
   objs.push(
-    ...drawSignal('sig', sigLeft, iconTop, ink, sigOpts).objs,
-    ...drawWifi('wf', wifiLeft, iconTop - 0.2, ink, mask, wifiLvl).objs,
+    ...drawSignal('sig', sigLeft, iconTop, ink, { ...sigOpts, style: 'material' }).objs,
+    ...drawWifi('wf', wifiLeft, iconTop - 0.2, ink, mask, wifiLvl, 'material').objs,
     textObj('battery', pctStr, iconTop - 0.2, pctLeft, 12, 500, 'battery', font, ink),
     ...drawBattery('batt', battLeft, iconTop + 0.2, pct, ink, 'material', { charging }).objs,
   )
@@ -586,8 +586,8 @@ function iosStatus(
   const sigLeft = wifiLeft - gap - sigW
 
   objs.push(
-    ...drawSignal('sig', sigLeft, iconTop, ink, sigOpts).objs,
-    ...drawWifi('wf', wifiLeft, iconTop - 0.15, ink, mask, wifiLvl).objs,
+    ...drawSignal('sig', sigLeft, iconTop, ink, { ...sigOpts, style: 'ios' }).objs,
+    ...drawWifi('wf', wifiLeft, iconTop - 0.15, ink, mask, wifiLvl, 'ios').objs,
     textObj('battery', pctStr, iconTop - 0.35, pctLeft, 12.5, 600, 'battery', font, ink),
     ...drawBattery('batt', battLeft, iconTop + 0.15, pct, ink, 'ios', { charging }).objs,
   )
