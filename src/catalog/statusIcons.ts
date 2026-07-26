@@ -85,8 +85,9 @@ export function drawSignal(
 }
 
 /**
- * Wi‑Fi — three concentric arc bands + center nub (SF wifi / Material).
- * Paths approximate the classic fan, not flat horizontal slabs.
+ * Wi‑Fi — three stroked arcs + center nub (SF wifi / Material).
+ * Uses open stroked curves (not filled crescents) so antialiasing
+ * never leaves a dark seam through the fan.
  */
 export function drawWifi(
   id: string,
@@ -96,30 +97,26 @@ export function drawWifi(
   _mask = '#181A20',
   strength = 3,
 ): { obj: FabricObj; width: number; height: number; objs: FabricObj[] } {
-  const { width, height } = wifiSize('ios')
+  const { width, height } = wifiSize()
   const level = Math.max(0, Math.min(3, Math.round(strength)))
-  // Arc bands as filled crescent-like paths (outer → inner)
-  const arcs: { d: string; litAt: number }[] = [
-    {
-      litAt: 3,
-      d: 'M 1.2 7.2 C 4.2 2.4 12.3 2.4 15.3 7.2 L 13.6 8.6 C 11.2 5.0 5.3 5.0 2.9 8.6 Z',
-    },
-    {
-      litAt: 2,
-      d: 'M 3.4 8.4 C 5.6 5.2 10.9 5.2 13.1 8.4 L 11.5 9.7 C 9.9 7.5 6.6 7.5 5.0 9.7 Z',
-    },
-    {
-      litAt: 1,
-      d: 'M 5.5 9.5 C 6.9 7.6 9.6 7.6 11.0 9.5 L 9.6 10.7 C 8.8 9.6 7.7 9.6 6.9 10.7 Z',
-    },
+  // Open quadratic arcs — stroke only, round caps (matches OS icons)
+  const arcs: { d: string; litAt: number; sw: number }[] = [
+    { litAt: 3, sw: 2.05, d: 'M 1.1 7.6 Q 8.25 1.15 15.4 7.6' },
+    { litAt: 2, sw: 2.05, d: 'M 3.15 8.55 Q 8.25 3.9 13.35 8.55' },
+    { litAt: 1, sw: 2.05, d: 'M 5.2 9.45 Q 8.25 6.55 11.3 9.45' },
   ]
   const objs: FabricObj[] = arcs.map((a, i) =>
-    pathObj(`${id}a${i}`, left, top, a.d, ink, {
-      opacity: level === 0 ? 0.16 : level >= a.litAt ? 1 : 0.2,
+    pathObj(`${id}a${i}`, left, top, a.d, 'rgba(0,0,0,0)', {
+      stroke: ink,
+      strokeWidth: a.sw,
+      strokeLineCap: 'round',
+      strokeLineJoin: 'round',
+      fill: 'rgba(0,0,0,0)',
+      opacity: level === 0 ? 0.16 : level >= a.litAt ? 1 : 0.22,
     }),
   )
   objs.push(
-    circle(`${id}dot`, left + width / 2 - 1.55, top + height - 3.1, 1.55, ink, {
+    circle(`${id}dot`, left + width / 2 - 1.55, top + height - 3.05, 1.55, ink, {
       receiptGroup: 'chrome',
       opacity: level === 0 ? 0.16 : 1,
     }),
