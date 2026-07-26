@@ -1,0 +1,20 @@
+---
+description: Commit and push every improvement to GitHub
+alwaysApply: true
+---
+
+# Push improvements to GitHub
+
+After finishing any feature, fix, or improvement in this project:
+
+1. Commit the relevant changes (follow the repo's git commit protocol / HEREDOC message style).
+2. Push to `origin` on the current branch (usually `main`).
+3. Do **not** wait for the user to ask — treat push as part of delivering the work.
+
+## Never commit
+
+- `api/config.local.php`, `api/data/`, `deploy/`, `.env*`, credentials, API tokens, live DB passwords
+
+## Repo
+
+- Remote: `https://github.com/transrock14-hub/receipt-maker`
