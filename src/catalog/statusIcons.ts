@@ -43,12 +43,32 @@ function polar(cx: number, cy: number, r: number, deg: number): [number, number]
 /**
  * Open circular arc as path commands (for stroked Wi‑Fi rings).
  * SVG: 0° = east, sweep=1 = clockwise.
+ *
+ * Corner L anchors force every ring to share the same Fabric pathOffset /
+ * bbox — without them each arc recenters on its own bounds and collapses
+ * into a single thick “cap” on the canvas.
  */
-function arcStrokePath(cx: number, cy: number, r: number, a0: number, a1: number): PathCmd[] {
+function arcStrokePath(
+  cx: number,
+  cy: number,
+  r: number,
+  a0: number,
+  a1: number,
+  boxW: number,
+  boxH: number,
+): PathCmd[] {
   const [x0, y0] = polar(cx, cy, r, a0)
   const [x1, y1] = polar(cx, cy, r, a1)
   const large = Math.abs(a1 - a0) > 180 ? 1 : 0
   return [
+    ['M', 0, 0],
+    ['L', 0, 0],
+    ['M', boxW, 0],
+    ['L', boxW, 0],
+    ['M', boxW, boxH],
+    ['L', boxW, boxH],
+    ['M', 0, boxH],
+    ['L', 0, boxH],
     ['M', x0, y0],
     ['A', r, r, 0, large, 1, x1, y1],
   ]
@@ -111,8 +131,7 @@ export function drawSignal(
 
 /**
  * Wi‑Fi fan — thick stroked circular arcs + nub (device-tuned).
- * Stroked open arcs avoid Fabric fill artifacts that left a dark “cap” seam
- * in filled annular bands.
+ * Paths are bbox-normalized so Fabric keeps rings concentric.
  */
 export function drawWifi(
   id: string,
@@ -154,15 +173,25 @@ export function drawWifi(
 
   const objs: FabricObj[] = rings.map((ring, i) => {
     const litAt = 3 - i
-    return pathObj(`${id}a${i}`, left, top, arcStrokePath(cx, cy, ring.r, a0, a1), '', {
-      fill: '',
-      stroke: ink,
-      strokeWidth: ring.sw,
-      strokeLineCap: 'round',
-      strokeLineJoin: 'round',
-      strokeUniform: true,
-      opacity: level === 0 ? 0.16 : level >= litAt ? 1 : 0.22,
-    })
+    return pathObj(
+      `${id}a${i}`,
+      left,
+      top,
+      arcStrokePath(cx, cy, ring.r, a0, a1, width, height),
+      'rgba(0,0,0,0)',
+      {
+        fill: 'rgba(0,0,0,0)',
+        stroke: ink,
+        strokeWidth: ring.sw,
+        strokeLineCap: 'round',
+        strokeLineJoin: 'round',
+        strokeUniform: true,
+        width,
+        height,
+        pathOffset: { x: width / 2, y: height / 2 },
+        opacity: level === 0 ? 0.16 : level >= litAt ? 1 : 0.22,
+      },
+    )
   })
 
   const nubR = style === 'oneui' ? 1.65 : style === 'material' ? 1.55 : 1.45

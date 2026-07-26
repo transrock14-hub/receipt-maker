@@ -179,9 +179,29 @@ check('charging adds green battery fill + bolt objects', () => {
     throw new Error('One UI Wi‑Fi should be slightly wider than iOS')
   }
   const sam = composeScreenshot('s24-ultra', 'binance-withdrawal', {}, 'dark')
-  const samWifi = objs(sam).find((o) => String(o.receiptId || '') === 'wfa0')
-  if (!Array.isArray(samWifi?.path)) {
-    throw new Error('Wi‑Fi path should be Fabric command array')
+  const samArcs = objs(sam).filter((o) => /^wfa\d$/.test(String(o.receiptId || '')))
+  if (samArcs.length !== 3) {
+    throw new Error('Samsung Wi‑Fi should have 3 arc paths')
+  }
+  for (const arc of samArcs) {
+    if (!Array.isArray(arc.path)) {
+      throw new Error('Wi‑Fi path should be Fabric command array')
+    }
+    // Corner anchors keep Fabric pathOffset identical across rings
+    const hasAnchor = arc.path.some(
+      (cmd) =>
+        Array.isArray(cmd) &&
+        cmd[0] === 'L' &&
+        Number(cmd[1]) === 0 &&
+        Number(cmd[2]) === 0,
+    )
+    if (!hasAnchor) {
+      throw new Error('Wi‑Fi arcs need shared bbox anchors for concentric pathOffset')
+    }
+  }
+  const offsets = samArcs.map((a) => a.pathOffset as { x: number; y: number } | undefined)
+  if (offsets.some((o) => !o || Math.abs(o.x - offsets[0]!.x) > 0.01 || Math.abs(o.y - offsets[0]!.y) > 0.01)) {
+    throw new Error('Wi‑Fi rings must share the same pathOffset')
   }
 })
 
