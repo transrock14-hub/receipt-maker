@@ -91,6 +91,20 @@ check('device list has apple+samsung+google+desktop', () => {
   }
 })
 
+check('charging adds green battery fill + bolt objects', () => {
+  const off = composeScreenshot('s24-ultra', 'binance-withdrawal', { charging: '' }, 'dark')
+  const on = composeScreenshot('s24-ultra', 'binance-withdrawal', { charging: '1' }, 'dark')
+  const objs = (c: typeof on) => (c.canvasJson as { objects: Array<Record<string, unknown>> }).objects
+  const fillOff = objs(off).find((o) => o.receiptId === 'battFill')
+  const fillOn = objs(on).find((o) => o.receiptId === 'battFill')
+  if (fillOn?.fill === fillOff?.fill) throw new Error('charging fill should turn green')
+  if (String(fillOn?.fill) !== '#4CAF50') throw new Error(`expected green fill, got ${fillOn?.fill}`)
+  const bolts = objs(on).filter((o) => String(o.receiptId || '').startsWith('battBolt'))
+  if (bolts.length < 3) throw new Error(`expected bolt pieces, got ${bolts.length}`)
+  const battText = objs(on).find((o) => o.receiptId === 'battery')
+  if (!String(battText?.text || '').includes('⚡')) throw new Error('battery % should show bolt when charging')
+})
+
 console.log(`\nControls smoke: ${passed} passed, ${failed} failed`)
 if (errors.length) {
   console.error(errors.join('\n'))

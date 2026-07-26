@@ -12,7 +12,7 @@ interface Props {
   selected: SelectedObjectProps | null
   palette: string[]
   generateValues: GenerateValues
-  onGenerateValuesChange: (v: GenerateValues) => void
+  onGenerateValuesChange: (v: GenerateValues | Partial<GenerateValues>) => void
   fieldKeys?: FieldKey[]
   composing?: boolean
   onChange: (patch: Partial<{

@@ -12,7 +12,7 @@ import './GeneratePanel.css'
 
 type Props = {
   values: GenerateValues
-  onChange: (values: GenerateValues) => void
+  onChange: (values: GenerateValues | Partial<GenerateValues>) => void
   fieldKeys?: FieldKey[]
   composing?: boolean
 }
@@ -62,7 +62,8 @@ export function GenerateFields({ values, onChange, fieldKeys, composing }: Props
   const unitUsd = usdRateFor(coin.symbol)
 
   const set = (key: keyof GenerateValues, value: string) => {
-    onChange({ ...values, [key]: value })
+    // Patch only — parent merges so rapid edits never drop `charging` / other keys
+    onChange({ [key]: value })
   }
 
   const applyQuote = (symbol: string, netId: string, qty: number, negative: boolean) => {
@@ -75,7 +76,6 @@ export function GenerateFields({ values, onChange, fieldKeys, composing }: Props
       usdPerCoin: rate,
     })
     onChange({
-      ...values,
       coin: quoted.coin,
       network: quoted.network,
       amountCrypto: quoted.amountCrypto,
@@ -304,13 +304,13 @@ export function GenerateFields({ values, onChange, fieldKeys, composing }: Props
                     <option value="0">Off</option>
                   </select>
                 </label>
-                <label className="side-check">
+                <label className={`side-check${chargingOn ? ' is-on' : ''}`}>
                   <input
                     type="checkbox"
                     checked={chargingOn}
                     onChange={(e) => set('charging', e.target.checked ? '1' : '')}
                   />
-                  Charging
+                  Charging{chargingOn ? ' · on' : ''}
                 </label>
               </div>
             ) : null}

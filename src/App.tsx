@@ -1410,9 +1410,9 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
             pushHistory()
           }}
           onAddText={handleAddText}
-          onGenerateValuesChange={(v) => {
+          onGenerateValuesChange={(patch) => {
             setComposeLive(true)
-            setGenerateValues(v)
+            setGenerateValues((prev) => ({ ...prev, ...patch }))
           }}
           onRefreshPreview={() => void applyComposeToCanvas()}
           onDeviceChange={handleDeviceChange}
@@ -1485,9 +1485,9 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
             selected={selected}
             palette={palette}
             generateValues={generateValues}
-            onGenerateValuesChange={(v) => {
+            onGenerateValuesChange={(patch) => {
               setComposeLive(true)
-              setGenerateValues(v)
+              setGenerateValues((prev) => ({ ...prev, ...patch }))
             }}
             fieldKeys={generateFieldKeys}
             composing={composing}

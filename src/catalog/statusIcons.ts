@@ -101,7 +101,10 @@ export function drawWifi(
   return { obj: objs[0], objs, width, height }
 }
 
-/** Lightning bolt for charging — Path-free stacked wedges. */
+/**
+ * Lightning bolt for charging — thick zigzag (readable at preview zoom).
+ * Previously used ~2px wedges that vanished on the phone mock.
+ */
 function drawChargeBolt(
   id: string,
   cx: number,
@@ -109,12 +112,18 @@ function drawChargeBolt(
   ink: string,
   h = 9,
 ): FabricObj[] {
-  const w = 4.2
+  const w = 7.2
   const left = cx - w / 2
+  const t = Math.max(1.6, h * 0.16)
   return [
-    rect(`${id}a`, left + 1.6, top, 2.2, h * 0.42, ink, 0.4, { receiptGroup: 'chrome' }),
-    rect(`${id}b`, left, top + h * 0.32, w, 2.1, ink, 0.4, { receiptGroup: 'chrome' }),
-    rect(`${id}c`, left + 0.4, top + h * 0.48, 2.2, h * 0.52, ink, 0.4, { receiptGroup: 'chrome' }),
+    // upper prong (↘)
+    rect(`${id}a`, left + w * 0.42, top, w * 0.38, t, ink, 0.35, { receiptGroup: 'chrome' }),
+    rect(`${id}b`, left + w * 0.28, top + t * 0.85, w * 0.42, t, ink, 0.35, { receiptGroup: 'chrome' }),
+    // middle bar (wider — the “Z” belly)
+    rect(`${id}c`, left, top + h * 0.38, w, t * 1.15, ink, 0.35, { receiptGroup: 'chrome' }),
+    // lower prong (↘)
+    rect(`${id}d`, left + w * 0.18, top + h * 0.55, w * 0.42, t, ink, 0.35, { receiptGroup: 'chrome' }),
+    rect(`${id}e`, left + w * 0.05, top + h * 0.72, w * 0.38, t, ink, 0.35, { receiptGroup: 'chrome' }),
   ]
 }
 
@@ -178,9 +187,21 @@ export function drawBattery(
   ]
 
   if (charging) {
-    // Bolt centered on battery body (inverse-looking on green fill)
-    const boltInk = level > 35 || style === 'ios' ? '#FFFFFF' : ink
-    objs.push(...drawChargeBolt(`${id}Bolt`, left + bodyW / 2, top + 1.4, boltInk, bodyH - 2.6))
+    // Ensure a green stage so the bolt reads at preview zoom
+    const chargeFillW = Math.max(fillW, maxFill * 0.78)
+    objs[1] = {
+      ...rect(
+        `${id}Fill`,
+        left + inset,
+        top + inset,
+        Math.min(chargeFillW, maxFill),
+        innerH,
+        fillColor,
+        innerR,
+      ),
+      receiptGroup: 'chrome',
+    }
+    objs.push(...drawChargeBolt(`${id}Bolt`, left + bodyW / 2, top + 1.1, '#FFFFFF', bodyH - 2))
   }
 
   const width = bodyW + tipGap + tipW

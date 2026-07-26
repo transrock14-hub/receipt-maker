@@ -7,7 +7,7 @@ import './GeneratePanel.css'
 
 interface Props {
   values: GenerateValues
-  onChange: (values: GenerateValues) => void
+  onChange: (values: GenerateValues | Partial<GenerateValues>) => void
   templateName?: string
   disabled?: boolean
   deviceId: DeviceId

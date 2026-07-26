@@ -56,7 +56,7 @@ interface Props {
   onToggleVisible: (layer: LayerInfo) => void
   onToggleLock: (layer: LayerInfo) => void
   onAddText: () => void
-  onGenerateValuesChange: (v: GenerateValues) => void
+  onGenerateValuesChange: (v: GenerateValues | Partial<GenerateValues>) => void
   onRefreshPreview?: () => void
   onDeviceChange: (id: DeviceId) => void
   onInstitutionChange: (id: string) => void
