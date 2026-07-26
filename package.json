@@ -9,6 +9,9 @@
     "setup:local": "php api/setup-local.php",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test:compose": "tsx scripts/smoke-compose.ts",
+    "test:controls": "tsx scripts/smoke-controls.ts",
+    "test:smoke": "tsx scripts/smoke-compose.ts && tsx scripts/smoke-controls.ts",
     "preview": "vite preview"
   },
   "dependencies": {

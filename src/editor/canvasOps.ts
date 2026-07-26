@@ -364,9 +364,12 @@ export async function loadCanvasJson(
   width: number,
   height: number,
 ) {
+  // Avoid a blank flash between clear and load
+  canvas.renderOnAddRemove = false
   canvas.clear()
   canvas.setDimensions({ width, height })
   await canvas.loadFromJSON(json)
+  canvas.renderOnAddRemove = true
   canvas.requestRenderAll()
 }
 

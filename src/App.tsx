@@ -259,7 +259,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
   }, [])
 
   const applyComposeToCanvas = useCallback(
-    async (opts?: { silent?: boolean }) => {
+    async (opts?: { silent?: boolean; soft?: boolean }) => {
       const gen = ++composeGenRef.current
 
       const run = async () => {
@@ -280,6 +280,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
           showFrame: framed,
         } = composeLatestRef.current
 
+        const soft = Boolean(opts?.soft)
         const insights = mergeStudyInsights(studyList)
         let composed = composeScreenshot(composeDevice, composeInstitution, values, theme)
         if (insights) {
@@ -330,10 +331,15 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
         imageDataUrlRef.current = null
         setHasImage(true)
         setPalette(composed.palette)
-        setZoom(composeDevice.startsWith('desktop') ? 0.45 : 0.85)
+        // Keep zoom stable while typing fields — only snap on device/layout changes
+        if (!soft) {
+          setZoom(composeDevice.startsWith('desktop') ? 0.45 : 0.85)
+        }
         lastAnalysisRef.current = null
-        historyRef.current.save()
-        syncHistoryFlags()
+        if (!soft) {
+          historyRef.current.save()
+          syncHistoryFlags()
+        }
         refreshLayers()
         refreshSelection()
         if (framed) {
@@ -888,18 +894,29 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
     setStatus(saved ? `Saved “${saved.name}” to Projects.` : `Generated screenshot.`)
   }, [applyComposeToCanvas, generateValues, persistCurrentProject, institutionId, deviceId])
 
+  const structureKeyRef = useRef('')
+
   // Live Generate preview — debounced recompose on form / device / institution change
   useEffect(() => {
     if (!bootReady || !composeLive) return
-    // Drop stale framed bitmap immediately so we never show the wrong wallet/device
-    setFramedPreviewUrl(null)
-    const inst = getInstitution(institutionId)
-    const device = getDevice(deviceId)
-    setStatus(`Updating · ${inst.brand} · ${inst.name} · ${device.name}`)
+    const structureKey = `${deviceId}|${institutionId}|${screenTheme}|${showFrame ? 1 : 0}`
+    const structural = structureKeyRef.current !== structureKey
+    if (structural) {
+      structureKeyRef.current = structureKey
+      // Only drop framed bitmap on layout changes — keep it while typing fields
+      setFramedPreviewUrl(null)
+      const inst = getInstitution(institutionId)
+      const device = getDevice(deviceId)
+      setStatus(`Updating · ${inst.brand} · ${inst.name} · ${device.name}`)
+    }
     setComposing(true)
+    const delay = structural ? 60 : 140
     const t = window.setTimeout(() => {
-      void applyComposeToCanvas({ silent: false }).finally(() => setComposing(false))
-    }, 200)
+      void applyComposeToCanvas({
+        silent: !structural,
+        soft: !structural,
+      }).finally(() => setComposing(false))
+    }, delay)
     return () => window.clearTimeout(t)
   }, [
     bootReady,
