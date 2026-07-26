@@ -34,6 +34,13 @@
   background: #222228;
 }
 
+.screenshot-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
 .screenshot-badge {
   font-size: 0.65rem;
   font-weight: 700;
@@ -43,12 +50,86 @@
   border-radius: 6px;
   background: #3a3a42;
   color: #f0f0f2;
+  flex-shrink: 0;
 }
 
 .screenshot-caption {
   font-size: 0.68rem;
   font-family: var(--mono);
   color: #9a9aa3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.screenshot-copy-widget {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+  padding: 0.2rem 0.25rem 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(91, 63, 214, 0.14);
+  border: 1px solid rgba(91, 63, 214, 0.45);
+  box-shadow: 0 0 0 1px rgba(91, 63, 214, 0.12), 0 4px 14px rgba(60, 30, 140, 0.25);
+}
+
+.screenshot-copy-hint {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #c4b5fd;
+}
+
+.screenshot-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #fff;
+  background: linear-gradient(180deg, #7c5cff 0%, #5b3fd6 100%);
+  padding: 0.42rem 0.85rem;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(91, 63, 214, 0.45);
+  transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
+}
+
+.screenshot-copy-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow: 0 3px 12px rgba(91, 63, 214, 0.55);
+  transform: translateY(-1px);
+}
+
+.screenshot-copy-btn:active:not(:disabled) {
+  transform: translateY(0);
+  filter: brightness(0.96);
+}
+
+.screenshot-copy-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.screenshot-copy-icon {
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .screenshot-caption {
+    display: none;
+  }
+
+  .screenshot-copy-hint {
+    display: none;
+  }
 }
 
 .screenshot-status {
