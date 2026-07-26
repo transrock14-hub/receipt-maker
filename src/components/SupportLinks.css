@@ -62,3 +62,46 @@
   font-size: 0.72rem;
   border-radius: 8px;
 }
+
+.support-floating {
+  position: fixed;
+  right: 1.15rem;
+  bottom: 1.15rem;
+  z-index: 80;
+  margin: 0;
+  max-width: min(18rem, calc(100vw - 2rem));
+  padding: 0.85rem 0.95rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(26, 22, 48, 0.08);
+  box-shadow:
+    0 12px 40px rgba(26, 22, 48, 0.14),
+    0 2px 8px rgba(26, 22, 48, 0.06);
+  backdrop-filter: blur(10px);
+}
+
+.support-floating .support-message {
+  font-size: 0.78rem;
+  color: #4a4458;
+  font-weight: 500;
+}
+
+.support-floating .support-actions {
+  width: 100%;
+}
+
+.support-floating .support-btn {
+  flex: 1;
+  min-height: 2.15rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 520px) {
+  .support-floating {
+    right: 0.75rem;
+    bottom: 0.75rem;
+    left: 0.75rem;
+    max-width: none;
+  }
+}

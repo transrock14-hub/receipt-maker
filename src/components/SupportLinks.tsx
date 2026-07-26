@@ -4,10 +4,12 @@ import './SupportLinks.css'
 
 type Props = {
   compact?: boolean
+  /** Fixed bottom-right chat-style widget (auth screens). */
+  floating?: boolean
   className?: string
 }
 
-export function SupportLinks({ compact, className }: Props) {
+export function SupportLinks({ compact, floating, className }: Props) {
   const [support, setSupport] = useState<SupportInfo | null>(null)
 
   useEffect(() => {
@@ -27,9 +29,19 @@ export function SupportLinks({ compact, className }: Props) {
 
   if (!support?.enabled) return null
 
+  const rootClass = [
+    'support-links',
+    compact ? 'support-compact' : '',
+    floating ? 'support-floating' : '',
+    className || '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
-    <div className={`support-links${compact ? ' support-compact' : ''}${className ? ` ${className}` : ''}`}>
+    <div className={rootClass} role="complementary" aria-label="Customer support">
       {!compact && <p className="support-message">{support.message}</p>}
+      {floating && compact ? <p className="support-message">{support.message}</p> : null}
       <div className="support-actions">
         {support.telegram_url ? (
           <a

@@ -185,8 +185,8 @@ export function AuthScreen() {
             ? 'Registration is invite-only. Ask an admin for a code, then pay with USDT to unlock downloads.'
             : 'Invite-only platform. Pay with crypto (USDT) to unlock downloads. For mockups & demos only.'}
         </p>
-        <SupportLinks />
       </div>
+      <SupportLinks floating />
     </div>
   )
 }
