@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
+require __DIR__ . '/rates.php';
 cors();
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
@@ -78,6 +79,13 @@ function route(string $method, string $path): void {
   }
   if ($method === 'GET' && $path === '/admin/activity') {
     handle_admin_activity();
+  }
+
+  if ($method === 'GET' && $path === '/rates') {
+    handle_rates();
+  }
+  if ($method === 'GET' && ($path === '/cron/rates' || $path === '/rates/refresh')) {
+    handle_rates_cron();
   }
 
   fail('Not found', 404);
@@ -665,4 +673,36 @@ function handle_admin_activity(): void {
   ];
 
   respond(['ok' => true, 'events' => $events, 'summary' => $summary]);
+}
+
+function handle_rates(): void {
+  $payload = rates_public_payload(true);
+  respond([
+    'ok' => true,
+    'rates' => $payload['rates'] ?? [],
+    'updated_at' => $payload['updated_at'] ?? null,
+    'source' => $payload['source'] ?? 'unknown',
+    'stale' => (bool)($payload['stale'] ?? false),
+  ]);
+}
+
+function handle_rates_cron(): void {
+  $cfg = app_config();
+  $secret = (string)($cfg['cron_secret'] ?? '');
+  $provided = (string)($_GET['key'] ?? '');
+  $hdr = $_SERVER['HTTP_X_CRON_KEY'] ?? '';
+  if ($secret === '') {
+    fail('cron_secret not configured', 503);
+  }
+  if (!hash_equals($secret, $provided) && !hash_equals($secret, (string)$hdr)) {
+    fail('Unauthorized', 401);
+  }
+  $payload = rates_refresh(true);
+  respond([
+    'ok' => true,
+    'refreshed' => true,
+    'rates' => $payload['rates'] ?? [],
+    'updated_at' => $payload['updated_at'] ?? null,
+    'source' => $payload['source'] ?? 'unknown',
+  ]);
 }

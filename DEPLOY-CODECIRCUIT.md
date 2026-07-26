@@ -66,6 +66,24 @@ This machine has **no Hostinger API token**, so API deploy can’t run from here
 2. Send the token (or set `HOSTINGER_API_TOKEN` in the environment)
 3. Ask again to “deploy via Hostinger API” — we can upload the same zip with `hosting_deployStaticWebsite`
 
-## Security note
+## Live crypto rates (cron)
 
-The DB password was used only in the local deploy zip (`deploy/` is gitignored). Because it appeared in chat, consider rotating it later in hPanel → Databases.
+Receipt fields auto-price BTC, ETH, USDT (TRC20/ERC20/BEP20), and more from live USD rates.
+
+1. Set in `api/config.local.php`:
+   - `cron_secret` → long random string
+   - `rates_ttl_seconds` → `300` (5 minutes)
+2. In Hostinger hPanel → **Cron Jobs**, add every 5 minutes:
+
+```bash
+curl -fsS "https://codecircuit.space/api/cron/rates?key=YOUR_CRON_SECRET" >/dev/null 2>&1
+```
+
+3. App reads `GET /api/rates` (cached). Cron forces a Binance refresh (CoinGecko fallback).
+
+Manual refresh once after deploy:
+
+```bash
+curl -fsS "https://codecircuit.space/api/cron/rates?key=YOUR_CRON_SECRET"
+```
+

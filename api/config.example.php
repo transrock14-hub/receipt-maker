@@ -34,4 +34,8 @@ return [
   'nowpayments_ipn_secret' => '',
   'nowpayments_api_url' => 'https://api.nowpayments.io/v1',
   'pay_currency' => 'usdttrc20',
+
+  // Live crypto rates (Binance → CoinGecko fallback). Cron hits /api/cron/rates?key=…
+  'cron_secret' => 'change-me-rates-cron',
+  'rates_ttl_seconds' => 300,
 ];

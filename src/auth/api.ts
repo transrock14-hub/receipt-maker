@@ -213,4 +213,12 @@ export const api = {
       }
     }>(`/admin/activity${qs ? `?${qs}` : ''}`)
   },
+  rates: () =>
+    request<{
+      ok: true
+      rates: Record<string, number>
+      updated_at: string | null
+      source: string
+      stale?: boolean
+    }>('/rates'),
 }

@@ -28,6 +28,7 @@ export type FieldKey =
   | 'fee'
   | 'title'
   | 'price'
+  | 'coin'
   | 'other'
 
 export const FIELD_DEFS: {
@@ -53,6 +54,7 @@ export const FIELD_DEFS: {
   },
   { key: 'recipient', label: 'To / Recipient', placeholder: 'Name or address', group: 'account' },
   { key: 'title', label: 'Title', placeholder: 'Sent BTC', group: 'transaction' },
+  { key: 'coin', label: 'Coin', placeholder: 'USDT', group: 'transaction' },
   { key: 'amountCrypto', label: 'Crypto amount', placeholder: '-0.00976991 BTC', group: 'transaction' },
   { key: 'amountFiat', label: 'Fiat amount', placeholder: '-$930.05', group: 'transaction' },
   { key: 'price', label: 'Price / rate', placeholder: '$95,195.35', group: 'transaction' },
@@ -198,6 +200,7 @@ export interface GenerateValues {
   accountOrIban: string
   recipient: string
   title: string
+  coin: string
   amountCrypto: string
   amountFiat: string
   price: string
@@ -220,6 +223,7 @@ export const EMPTY_GENERATE_VALUES: GenerateValues = {
   accountOrIban: '0x8f3a9c2e...a7e21c',
   recipient: '0x7a2f8c1d...c91e4b2d',
   title: 'Withdrawal Details',
+  coin: 'USDT',
   amountCrypto: '-45 USDT',
   amountFiat: '≈ $45.00',
   price: '45 USDT',

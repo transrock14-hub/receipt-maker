@@ -64,6 +64,8 @@ export function fieldKeyToRole(key: FieldKey): TextRole {
       return 'status'
     case 'title':
       return 'store'
+    case 'coin':
+      return 'item'
     default:
       return 'other'
   }
@@ -85,6 +87,7 @@ export function labelForFieldKey(key: FieldKey): string {
     fee: 'Fee',
     title: 'Title',
     price: 'Price',
+    coin: 'Coin',
     other: 'Other',
   }
   return map[key]

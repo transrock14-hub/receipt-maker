@@ -30,3 +30,6 @@ deploy/
 *.njsproj
 *.sln
 *.sw?
+
+.cron_secret
+deploy/.cron_secret

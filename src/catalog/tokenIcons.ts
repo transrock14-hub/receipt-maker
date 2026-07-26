@@ -198,3 +198,64 @@ export function wiseMark(prefix: string, cx: number, top: number, radius = 18): 
     },
   ]
 }
+
+/** Generic colored disc + ticker letter(s) for any coin. */
+export function brandedCoinIcon(
+  prefix: string,
+  cx: number,
+  top: number,
+  symbol: string,
+  color: string,
+  radius = 22,
+): FabricObj[] {
+  const label = symbol.length <= 2 ? symbol : symbol.slice(0, 1)
+  return [
+    { ...circle(`${prefix}Bg`, cx - radius, top, radius, color), receiptGroup: 'header' },
+    {
+      type: 'IText',
+      version: '7.0.0',
+      left: cx,
+      top: top + radius * (label.length > 1 ? 0.38 : 0.28),
+      text: label,
+      fontSize: radius * (label.length > 1 ? 0.72 : 1.0),
+      fontFamily: 'Inter, Roboto, sans-serif',
+      fontWeight: 800,
+      fill: '#FFFFFF',
+      originX: 'center',
+      originY: 'top',
+      selectable: false,
+      evented: false,
+      receiptId: `${prefix}L`,
+      receiptGroup: 'header',
+    },
+  ]
+}
+
+/** Pick the right mark for a coin symbol. */
+export function coinIconFor(
+  symbol: string,
+  prefix: string,
+  cx: number,
+  top: number,
+  radius = 22,
+): FabricObj[] {
+  const s = symbol.toUpperCase()
+  if (s === 'USDT') return usdtCoinIcon(prefix, cx, top, radius)
+  const colors: Record<string, string> = {
+    BTC: '#F7931A',
+    ETH: '#627EEA',
+    USDC: '#2775CA',
+    BNB: '#F3BA2F',
+    SOL: '#9945FF',
+    XRP: '#23292F',
+    DOGE: '#C2A633',
+    TRX: '#FF0013',
+    TON: '#0098EA',
+    ADA: '#0033AD',
+    AVAX: '#E84142',
+    LINK: '#2A5ADA',
+    DOT: '#E6007A',
+    MATIC: '#8247E5',
+  }
+  return brandedCoinIcon(prefix, cx, top, s, colors[s] || '#7A5AF8', radius)
+}

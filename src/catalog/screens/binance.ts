@@ -1,6 +1,6 @@
 import type { GenerateValues } from '../../types/receipt'
 import { label, rect, strokedRect, textObj } from '../fabricHelpers'
-import { usdtCoinIcon } from '../tokenIcons'
+import { coinIconFor } from '../tokenIcons'
 import {
   detailList,
   field,
@@ -21,6 +21,7 @@ const BINANCE_SANS = 'Roboto, Inter, "Noto Sans", sans-serif'
  */
 const DEFAULTS: Partial<GenerateValues> = {
   title: 'Withdrawal Details',
+  coin: 'USDT',
   amountCrypto: '-45 USDT',
   amountFiat: '≈ $45.00',
   status: 'Completed',
@@ -83,10 +84,11 @@ export function buildBinanceScreen(ctx: ScreenBuildContext): ScreenContent {
   const amountSize = compact ? 24 : 28
 
   const txid = (v.accountOrIban || DEFAULTS.accountOrIban || '').replace(/\s*>\s*$/, '')
+  const coinSym = (v.coin || 'USDT').toUpperCase()
 
   const objects = [
     ...tagAll(binanceNav(ctx, v.title || 'Withdrawal Details', ink, font), 'header'),
-    ...usdtCoinIcon('usdt', cx, y0, coinR),
+    ...coinIconFor(coinSym, 'coinMark', cx, y0, coinR),
     tag(
       textObj(
         'amountCrypto',
@@ -137,7 +139,7 @@ export function buildBinanceScreen(ctx: ScreenBuildContext): ScreenContent {
         ctx,
         listY,
         [
-          { labelId: 'coinL', label: 'Coin', valueId: 'coinV', value: 'USDT', fieldKey: null },
+          { labelId: 'coinL', label: 'Coin', valueId: 'coin', value: coinSym, fieldKey: 'coin' },
           {
             labelId: 'addrL',
             label: 'Address',
@@ -222,6 +224,7 @@ export function buildBinanceScreen(ctx: ScreenBuildContext): ScreenContent {
     palette: ctx.colors.palette.length ? ctx.colors.palette : kit?.palette || [bg, ink, yellow, green, '#26A17B', muted],
     fields: [
       field('title', 'title', 'Title', DEFAULTS.title!),
+      field('coin', 'coin', 'Coin', DEFAULTS.coin!),
       field('amountCrypto', 'amountCrypto', 'Amount', DEFAULTS.amountCrypto!),
       field('amountFiat', 'amountFiat', 'Fiat', DEFAULTS.amountFiat!),
       field('status', 'status', 'Status', DEFAULTS.status!),
