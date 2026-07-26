@@ -33,3 +33,6 @@ deploy/
 
 .cron_secret
 deploy/.cron_secret
+
+deploy/.hostinger_token
+.hostinger_token
