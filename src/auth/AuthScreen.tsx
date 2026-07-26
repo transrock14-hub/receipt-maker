@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from './AuthContext'
-import { SupportLinks } from '../components/SupportLinks'
+import { SupportWidget } from '../components/SupportLinks'
 import './AuthScreens.css'
 
 const REMEMBER_KEY = 'rm_remember_username'
@@ -186,7 +186,7 @@ export function AuthScreen() {
             : 'Invite-only platform. Pay with crypto (USDT) to unlock downloads. For mockups & demos only.'}
         </p>
       </div>
-      <SupportLinks floating />
+      <SupportWidget />
     </div>
   )
 }

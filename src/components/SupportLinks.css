@@ -63,45 +63,103 @@
   border-radius: 8px;
 }
 
-.support-floating {
+/* Floating chat widget (auth) — fixed to viewport via portal */
+.support-widget {
   position: fixed;
-  right: 1.15rem;
-  bottom: 1.15rem;
-  z-index: 80;
-  margin: 0;
-  max-width: min(18rem, calc(100vw - 2rem));
-  padding: 0.85rem 0.95rem;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.65rem;
+  pointer-events: none;
+}
+
+.support-widget > * {
+  pointer-events: auto;
+}
+
+.support-widget-fab {
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(160deg, #7a5af8, #5b3fd6);
+  box-shadow:
+    0 10px 28px rgba(91, 63, 214, 0.38),
+    0 2px 8px rgba(26, 22, 48, 0.12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.65rem;
+  line-height: 1;
+  transition: transform 0.15s ease, filter 0.12s ease;
+}
+
+.support-widget-fab:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.support-widget.is-open .support-widget-fab {
+  background: #1a1630;
+}
+
+.support-widget-panel {
+  width: min(17.5rem, calc(100vw - 2.5rem));
+  padding: 0.95rem 1rem 1rem;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.96);
+  background: #fff;
   border: 1px solid rgba(26, 22, 48, 0.08);
   box-shadow:
-    0 12px 40px rgba(26, 22, 48, 0.14),
-    0 2px 8px rgba(26, 22, 48, 0.06);
-  backdrop-filter: blur(10px);
+    0 18px 48px rgba(26, 22, 48, 0.18),
+    0 2px 10px rgba(26, 22, 48, 0.06);
+  animation: support-pop 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.support-floating .support-message {
+.support-widget-title {
+  margin: 0 0 0.2rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #1a1630;
+}
+
+.support-widget-msg {
+  margin: 0 0 0.75rem;
   font-size: 0.78rem;
-  color: #4a4458;
-  font-weight: 500;
+  color: #6b6578;
+  line-height: 1.4;
 }
 
-.support-floating .support-actions {
+.support-widget-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.support-widget-actions .support-btn {
   width: 100%;
+  min-height: 2.25rem;
+  border-radius: 10px;
 }
 
-.support-floating .support-btn {
-  flex: 1;
-  min-height: 2.15rem;
-  border-radius: 10px;
-  font-size: 0.8rem;
+@keyframes support-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @media (max-width: 520px) {
-  .support-floating {
-    right: 0.75rem;
-    bottom: 0.75rem;
-    left: 0.75rem;
-    max-width: none;
+  .support-widget {
+    right: 0.85rem;
+    bottom: 0.85rem;
   }
 }
