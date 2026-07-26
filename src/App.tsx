@@ -148,6 +148,24 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
   const [propsOpen, setPropsOpen] = useState(false)
   const skipNextAutosaveRef = useRef(false)
   const composeGenRef = useRef(0)
+  const composeLatestRef = useRef({
+    deviceId,
+    institutionId,
+    screenTheme,
+    generateValues,
+    studies,
+    templates,
+    showFrame,
+  })
+  composeLatestRef.current = {
+    deviceId,
+    institutionId,
+    screenTheme,
+    generateValues,
+    studies,
+    templates,
+    showFrame,
+  }
 
   hideOriginalRef.current = hideOriginal
 
@@ -239,25 +257,23 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
     canvasRef.current?.requestRenderAll()
   }, [])
 
-  const updateFramedPreview = useCallback(async () => {
-    const canvas = canvasRef.current
-    if (!canvas || !showFrame) {
-      setFramedPreviewUrl(null)
-      return
-    }
-    const url = await previewFramedScreenshot(canvas, deviceId, 1.1)
-    setFramedPreviewUrl(url)
-  }, [deviceId, showFrame])
-
   const applyComposeToCanvas = useCallback(
     async (opts?: { silent?: boolean }) => {
       const canvas = canvasRef.current
       if (!canvas) return null
       const gen = ++composeGenRef.current
-      const composeDevice = deviceId
-      const composeInstitution = institutionId
-      const insights = mergeStudyInsights(studies)
-      let composed = composeScreenshot(composeDevice, composeInstitution, generateValues, screenTheme)
+      const {
+        deviceId: composeDevice,
+        institutionId: composeInstitution,
+        generateValues: values,
+        screenTheme: theme,
+        studies: studyList,
+        templates: tpls,
+        showFrame: framed,
+      } = composeLatestRef.current
+
+      const insights = mergeStudyInsights(studyList)
+      let composed = composeScreenshot(composeDevice, composeInstitution, values, theme)
       if (insights) {
         composed = {
           ...composed,
@@ -267,7 +283,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
       }
       const tplId = `catalog-${composeInstitution}-${composeDevice}`
       const tpl =
-        templates.find((t) => t.id === tplId) ||
+        tpls.find((t) => t.id === tplId) ||
         ({
           id: tplId,
           name: composed.name,
@@ -283,7 +299,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
           institutionId: composeInstitution,
         } satisfies ReceiptTemplate)
 
-      // Drop stale results if the user changed device/wallet while we were composing
+      // A newer compose started — abandon this one
       if (gen !== composeGenRef.current) return null
 
       setActiveTemplate(tpl)
@@ -301,10 +317,12 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
       syncHistoryFlags()
       refreshLayers()
       refreshSelection()
-      if (showFrame) {
+      if (framed) {
         const url = await previewFramedScreenshot(canvas, composeDevice, 1.1)
         if (gen !== composeGenRef.current) return null
         setFramedPreviewUrl(url)
+      } else {
+        setFramedPreviewUrl(null)
       }
       if (!opts?.silent) {
         const studyNote = insights ? ` · study ×${insights.count}` : ''
@@ -312,18 +330,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
       }
       return composed
     },
-    [
-      deviceId,
-      institutionId,
-      screenTheme,
-      generateValues,
-      studies,
-      templates,
-      showFrame,
-      syncHistoryFlags,
-      refreshLayers,
-      refreshSelection,
-    ],
+    [syncHistoryFlags, refreshLayers, refreshSelection],
   )
 
   const pushHistory = useCallback(() => {
@@ -856,28 +863,31 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
   // Live Generate preview — debounced recompose on form / device / institution change
   useEffect(() => {
     if (!bootReady || !composeLive) return
+    // Drop stale framed bitmap immediately so we never show the wrong wallet/device
+    setFramedPreviewUrl(null)
+    const inst = getInstitution(institutionId)
+    const device = getDevice(deviceId)
+    setStatus(`Updating · ${inst.brand} · ${inst.name} · ${device.name}`)
     setComposing(true)
-    let cancelled = false
     const t = window.setTimeout(() => {
-      void applyComposeToCanvas({ silent: false }).finally(() => {
-        if (!cancelled) setComposing(false)
-      })
-    }, 280)
-    return () => {
-      cancelled = true
-      window.clearTimeout(t)
-      // Invalidate in-flight compose so it cannot overwrite a newer selection
-      composeGenRef.current += 1
-    }
-  }, [bootReady, composeLive, applyComposeToCanvas])
+      void applyComposeToCanvas({ silent: false }).finally(() => setComposing(false))
+    }, 200)
+    return () => window.clearTimeout(t)
+  }, [
+    bootReady,
+    composeLive,
+    deviceId,
+    institutionId,
+    screenTheme,
+    generateValues,
+    studies,
+    showFrame,
+    applyComposeToCanvas,
+  ])
 
   useEffect(() => {
-    if (!showFrame) {
-      setFramedPreviewUrl(null)
-      return
-    }
-    void updateFramedPreview()
-  }, [showFrame, updateFramedPreview, selectionTick])
+    if (!showFrame) setFramedPreviewUrl(null)
+  }, [showFrame])
 
   const handleBatchExport = useCallback(async () => {
     if (!canDownload) {
@@ -1389,6 +1399,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
           status={status}
           showFrame={showFrame}
           framedPreviewUrl={framedPreviewUrl}
+          composing={composing}
           editable={
             <EditorCanvas
               onReady={handleReady}
