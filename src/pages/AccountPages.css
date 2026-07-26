@@ -501,6 +501,29 @@
   color: #6b5420;
 }
 
+.action-pill.action-active {
+  background: #e5f4ea;
+  color: #0d7a4f;
+}
+
+.action-pill.action-used,
+.action-pill.action-expired {
+  background: #f3efe0;
+  color: #7a5c00;
+}
+
+.action-pill.action-revoked {
+  background: #fde8e6;
+  color: #b42318;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
 .row-warn td {
   background: rgba(253, 232, 230, 0.35);
 }
