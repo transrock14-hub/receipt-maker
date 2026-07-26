@@ -149,11 +149,27 @@ check('charging adds green battery fill + bolt objects', () => {
   const fillOff = objs(off).find((o) => o.receiptId === 'battFill')
   const fillOn = objs(on).find((o) => o.receiptId === 'battFill')
   if (fillOn?.fill === fillOff?.fill) throw new Error('charging fill should turn green')
-  if (String(fillOn?.fill) !== '#4CAF50') throw new Error(`expected green fill, got ${fillOn?.fill}`)
-  const bolts = objs(on).filter((o) => String(o.receiptId || '').startsWith('battBolt'))
-  if (bolts.length < 3) throw new Error(`expected bolt pieces, got ${bolts.length}`)
+  if (!String(fillOn?.fill).match(/#1E8E3E|#34C759|#4CAF50/i)) {
+    throw new Error(`expected green fill, got ${fillOn?.fill}`)
+  }
+  const bolt = objs(on).find((o) => String(o.receiptId || '') === 'battBolt')
+  if (!bolt || String(bolt.type).toLowerCase() !== 'path') {
+    throw new Error('expected Path lightning bolt on battery')
+  }
   const battText = objs(on).find((o) => o.receiptId === 'battery')
-  if (!String(battText?.text || '').includes('⚡')) throw new Error('battery % should show bolt when charging')
+  if (!/^\d+$/.test(String(battText?.text || ''))) {
+    throw new Error(`battery % should be digits only, got ${battText?.text}`)
+  }
+  // iOS shows percentage next to battery
+  const ios = composeScreenshot('iphone-16-pro', 'coinbase-received', { battery: '100', charging: '1' }, 'light')
+  const iosPct = objs(ios).find((o) => o.receiptId === 'battery')
+  if (String(iosPct?.text) !== '100' || Number(iosPct?.opacity ?? 1) < 0.5) {
+    throw new Error('iOS should show visible battery percentage')
+  }
+  const wifi = objs(ios).find((o) => String(o.receiptId || '').startsWith('wfa'))
+  if (!wifi || String(wifi.type).toLowerCase() !== 'path') {
+    throw new Error('Wi‑Fi should use Path arcs')
+  }
 })
 
 console.log(`\nControls smoke: ${passed} passed, ${failed} failed`)

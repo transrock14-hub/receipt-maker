@@ -1,6 +1,7 @@
 import type { DeviceId, DeviceBezel, DeviceProfile, GenerateValues } from '../types/receipt'
 import { circle, label, rect, textObj, type FabricObj } from './fabricHelpers'
 import {
+  batteryPctWidth,
   batterySize,
   cellularLabelWidth,
   drawBattery,
@@ -446,35 +447,35 @@ function samsungStatus(
   const wifiLvl = parseBars(values.wifi, 0, 3, 3)
   const radio = cellularLabel(values)
   const font = device.fontFamily
-  const edge = 14
-  const iconTop = 11
-  const gap = 5.5
-  const sigOpts = { barW: 2.6, gap: 1.55, maxH: 11, bars }
+  const edge = 16
+  const iconTop = 12
+  const gap = 6
+  const sigOpts = { barW: 2.85, gap: 1.55, maxH: 11.2, bars }
 
   const battW = batterySize('oneui').width
-  const wifiW = wifiSize().width
+  const wifiW = wifiSize('oneui').width
   const sigW = signalSize(sigOpts).width
   const pctStr = String(pct)
-  const pctApproxW = pctStr.length * 6.2
-  const radioW = radio ? cellularLabelWidth(radio, 10) : 0
+  const pctW = batteryPctWidth(pctStr, 12)
+  const radioW = radio ? cellularLabelWidth(radio, 11) : 0
 
   const battLeft = w - edge - battW
-  const pctLeft = battLeft - 3 - pctApproxW
+  const pctLeft = battLeft - 4 - pctW
   const wifiLeft = pctLeft - gap - wifiW
   const sigLeft = wifiLeft - gap - sigW
-  const radioLeft = sigLeft - (radioW ? gap + radioW : 0)
+  const radioLeft = sigLeft - (radioW ? gap * 0.85 + radioW : 0)
 
   const objs: FabricObj[] = [
-    textObj('time', time, iconTop - 1, 14, 13, 600, 'time', font, ink),
+    textObj('time', time, iconTop - 1, 16, 13.5, 600, 'time', font, ink),
   ]
   if (radio) {
-    objs.push(label('cellular', radio, iconTop + 0.5, radioLeft, 10, 700, font, ink))
+    objs.push(label('cellular', radio, iconTop + 0.2, radioLeft, 11, 700, font, ink))
   }
   objs.push(
     ...drawSignal('sig', sigLeft, iconTop, ink, sigOpts).objs,
-    ...drawWifi('wf', wifiLeft, iconTop, ink, mask, wifiLvl).objs,
-    textObj('battery', pctStr, iconTop, pctLeft, 11, 500, 'battery', font, ink),
-    ...drawBattery('batt', battLeft, iconTop + 0.5, pct, ink, 'oneui', { charging }).objs,
+    ...drawWifi('wf', wifiLeft, iconTop - 0.2, ink, mask, wifiLvl).objs,
+    textObj('battery', pctStr, iconTop - 0.2, pctLeft, 12, 600, 'battery', font, ink),
+    ...drawBattery('batt', battLeft, iconTop + 0.35, pct, ink, 'oneui', { charging }).objs,
   )
   return objs
 }
@@ -494,34 +495,35 @@ function pixelStatus(
   const wifiLvl = parseBars(values.wifi, 0, 3, 3)
   const radio = cellularLabel(values)
   const font = device.fontFamily
-  const edge = 16
+  const edge = 18
   const iconTop = 12
   const gap = 6.5
-  const sigOpts = { barW: 2.7, gap: 1.65, maxH: 11, bars }
+  const sigOpts = { barW: 3, gap: 1.65, maxH: 11.2, bars }
 
   const battW = batterySize('material').width
-  const wifiW = wifiSize().width
+  const wifiW = wifiSize('material').width
   const sigW = signalSize(sigOpts).width
   const pctStr = String(pct)
-  const radioW = radio ? cellularLabelWidth(radio, 10) : 0
+  const pctW = batteryPctWidth(pctStr, 12)
+  const radioW = radio ? cellularLabelWidth(radio, 11) : 0
 
   const battLeft = w - edge - battW
-  const pctLeft = battLeft - 5 - pctStr.length * 6.2
+  const pctLeft = battLeft - 5 - pctW
   const wifiLeft = pctLeft - gap - wifiW
   const sigLeft = wifiLeft - gap - sigW
-  const radioLeft = sigLeft - (radioW ? gap + radioW : 0)
+  const radioLeft = sigLeft - (radioW ? gap * 0.85 + radioW : 0)
 
   const objs: FabricObj[] = [
-    textObj('time', time, iconTop - 1, 16, 13, 500, 'time', font, ink),
+    textObj('time', time, iconTop - 1, 18, 13.5, 500, 'time', font, ink),
   ]
   if (radio) {
-    objs.push(label('cellular', radio, iconTop + 0.5, radioLeft, 10, 600, font, ink))
+    objs.push(label('cellular', radio, iconTop + 0.2, radioLeft, 11, 600, font, ink))
   }
   objs.push(
     ...drawSignal('sig', sigLeft, iconTop, ink, sigOpts).objs,
-    ...drawWifi('wf', wifiLeft, iconTop, ink, mask, wifiLvl).objs,
-    textObj('battery', pctStr, iconTop, pctLeft, 11, 500, 'battery', font, ink),
-    ...drawBattery('batt', battLeft, iconTop, pct, ink, 'material', { charging }).objs,
+    ...drawWifi('wf', wifiLeft, iconTop - 0.2, ink, mask, wifiLvl).objs,
+    textObj('battery', pctStr, iconTop - 0.2, pctLeft, 12, 500, 'battery', font, ink),
+    ...drawBattery('batt', battLeft, iconTop + 0.2, pct, ink, 'material', { charging }).objs,
   )
   return objs
 }
@@ -553,43 +555,42 @@ function iosStatus(
   const notch = face === 'notch'
   const objs: FabricObj[] = []
   const font = device.fontFamily
-  const gap = 5.5
-  const sigOpts = { barW: 3, gap: 1.65, maxH: 10.5, bars }
+  const gap = 5.75
+  const sigOpts = { barW: 3.15, gap: 1.7, maxH: 11, bars }
 
-  objs.push(textObj('time', time, island || notch ? 14 : 11, 26, 15, 600, 'time', font, ink))
+  objs.push(textObj('time', time, island || notch ? 14.5 : 11.5, 28, 15.5, 600, 'time', font, ink))
 
   if (island) {
     const iw = device.id.includes('pro-max') ? 134 : 125
     const ih = 35
     objs.push(rect('island', w / 2 - iw / 2, 11, iw, ih, '#000000', ih / 2))
   } else if (notch) {
-    // Classic notch silhouette
     objs.push(rect('notch', w / 2 - 75, 0, 150, 32, '#000000', 18))
   } else if (face === 'none') {
     objs.push(rect('earpiece', w / 2 - 30, 7, 60, 6, '#000000', 3))
   }
 
+  // iOS with Battery Percentage on (standard for receipt mocks):
+  // signal · wifi · % · battery
   const iconTop = island || notch ? 16.5 : 12.5
-  const edge = 16
+  const edge = 18
   const battW = batterySize('ios').width
-  const wifiW = wifiSize().width
+  const wifiW = wifiSize('ios').width
   const sigW = signalSize(sigOpts).width
+  const pctStr = String(pct)
+  const pctW = batteryPctWidth(pctStr, 12.5)
+
   const battLeft = w - edge - battW
-  const wifiLeft = battLeft - gap - wifiW
+  const pctLeft = battLeft - 4.5 - pctW
+  const wifiLeft = pctLeft - gap - wifiW
   const sigLeft = wifiLeft - gap - sigW
 
   objs.push(
     ...drawSignal('sig', sigLeft, iconTop, ink, sigOpts).objs,
-    ...drawWifi('wf', wifiLeft, iconTop, ink, mask, wifiLvl).objs,
-    ...drawBattery('batt', battLeft, iconTop, pct, ink, 'ios', { charging }).objs,
+    ...drawWifi('wf', wifiLeft, iconTop - 0.15, ink, mask, wifiLvl).objs,
+    textObj('battery', pctStr, iconTop - 0.35, pctLeft, 12.5, 600, 'battery', font, ink),
+    ...drawBattery('batt', battLeft, iconTop + 0.15, pct, ink, 'ios', { charging }).objs,
   )
-  objs.push({
-    ...textObj('battery', String(pct), 0, 0, 1, 400, 'battery', font, ink),
-    opacity: 0,
-    selectable: false,
-    evented: false,
-    receiptGroup: 'chrome',
-  })
   return objs
 }
 
