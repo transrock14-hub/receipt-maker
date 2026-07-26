@@ -570,25 +570,25 @@ function iosStatus(
     objs.push(rect('earpiece', w / 2 - 30, 7, 60, 6, '#000000', 3))
   }
 
-  // Real iOS with Battery Percentage on: signal · wifi · battery(with % inside)
+  // iOS: signal · wifi · % · battery (percentage outside the body)
   const iconTop = island || notch ? 16.5 : 12.5
   const edge = 16
-  const battW = batterySize('ios', { percentInside: true }).width
+  const battW = batterySize('ios').width
   const wifiW = wifiSize('ios').width
   const sigW = signalSize(sigOpts).width
+  const pctStr = String(pct)
+  const pctW = batteryPctWidth(pctStr, 12.5)
 
   const battLeft = w - edge - battW
-  const wifiLeft = battLeft - gap - wifiW
+  const pctLeft = battLeft - 4.5 - pctW
+  const wifiLeft = pctLeft - gap - wifiW
   const sigLeft = wifiLeft - gap - sigW
 
   objs.push(
     ...drawSignal('sig', sigLeft, iconTop, ink, { ...sigOpts, style: 'ios' }).objs,
     ...drawWifi('wf', wifiLeft, iconTop - 0.1, ink, mask, wifiLvl, 'ios').objs,
-    ...drawBattery('batt', battLeft, iconTop + 0.05, pct, ink, 'ios', {
-      charging,
-      percentInside: true,
-      fontFamily: font,
-    }).objs,
+    textObj('battery', pctStr, iconTop - 0.35, pctLeft, 12.5, 600, 'battery', font, ink),
+    ...drawBattery('batt', battLeft, iconTop + 0.05, pct, ink, 'ios', { charging }).objs,
   )
   return objs
 }

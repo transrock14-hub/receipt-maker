@@ -161,24 +161,19 @@ check('charging adds green battery fill + bolt objects', () => {
   if (!/^\d+$/.test(String(battText?.text || ''))) {
     throw new Error(`battery % should be digits only, got ${battText?.text}`)
   }
-  // Real iOS: Battery Percentage lives inside the battery body
+  // iOS: percentage sits to the left of the battery body
   const ios = composeScreenshot('iphone-16-pro', 'coinbase-received', { battery: '50', charging: '' }, 'dark')
   const iosPct = objs(ios).find((o) => o.receiptId === 'battery')
   if (String(iosPct?.text) !== '50' || Number(iosPct?.opacity ?? 1) < 0.5) {
     throw new Error('iOS should show visible battery percentage')
   }
-  if (String(iosPct?.originX) !== 'center') {
-    throw new Error('iOS battery % should be centered inside the battery')
-  }
   const iosOut = objs(ios).find((o) => o.receiptId === 'battOut')
   const iosFill = objs(ios).find((o) => o.receiptId === 'battFill')
   if (!iosOut || !iosFill) throw new Error('iOS battery outline/fill missing')
-  // % text should sit within battery body horizontally
   const battLeft = Number(iosOut.left)
-  const battW = Number(iosOut.width)
   const pctLeft = Number(iosPct?.left)
-  if (pctLeft < battLeft || pctLeft > battLeft + battW) {
-    throw new Error('iOS battery % should be inside the battery body')
+  if (!(pctLeft + 4 < battLeft)) {
+    throw new Error('iOS battery % should sit outside (left of) the battery')
   }
   const iosCharge = composeScreenshot('iphone-16-pro', 'coinbase-received', { battery: '87', charging: '1' }, 'dark')
   const iosChargeFill = objs(iosCharge).find((o) => o.receiptId === 'battFill')
@@ -186,8 +181,8 @@ check('charging adds green battery fill + bolt objects', () => {
   if (!String(iosChargeFill?.fill).match(/#34C759/i)) {
     throw new Error('iOS charging battery should be green')
   }
-  if (iosChargeBolt) {
-    throw new Error('iOS with % inside should not show a bolt while charging')
+  if (!iosChargeBolt || String(iosChargeBolt.type).toLowerCase() !== 'path') {
+    throw new Error('iOS charging should show a bolt inside the battery')
   }
   const wifi = objs(ios).find((o) => String(o.receiptId || '').startsWith('wfa'))
   if (!wifi || String(wifi.type).toLowerCase() !== 'path') {

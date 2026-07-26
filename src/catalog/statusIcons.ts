@@ -2,7 +2,7 @@
  * Status-bar icons — match real iOS SF Symbols / Samsung One UI / Material.
  * Prefer Path for curves (Wi‑Fi arcs, lightning); Rect/Circle for bars & battery.
  */
-import { circle, label, rect, strokedRect, type FabricObj } from './fabricHelpers'
+import { circle, rect, strokedRect, type FabricObj } from './fabricHelpers'
 
 export type BatteryStyle = 'ios' | 'oneui' | 'material'
 
@@ -83,13 +83,9 @@ function arcBandPath(
   ]
 }
 
-export function batterySize(style: BatteryStyle, opts?: { percentInside?: boolean }): {
-  width: number
-  height: number
-} {
-  const inside = Boolean(opts?.percentInside)
-  const bodyW = style === 'ios' ? (inside ? 33 : 27.5) : style === 'material' ? 24 : 25
-  const bodyH = style === 'ios' ? (inside ? 13 : 12.5) : 11.5
+export function batterySize(style: BatteryStyle): { width: number; height: number } {
+  const bodyW = style === 'ios' ? 27.5 : style === 'material' ? 24 : 25
+  const bodyH = style === 'ios' ? 12.5 : 11.5
   const tipW = style === 'ios' ? 1.7 : 1.6
   const tipGap = 0.55
   return { width: bodyW + tipGap + tipW, height: bodyH }
@@ -112,17 +108,6 @@ export function cellularLabelWidth(labelText: string, size = 11): number {
   const t = labelText.trim()
   if (!t) return 0
   return Math.max(11, t.length * size * 0.58 + 1)
-}
-
-function inkIsLight(ink: string): boolean {
-  const m = ink.trim().match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i)
-  if (!m) return true
-  let h = m[1]
-  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]
-  const r = parseInt(h.slice(0, 2), 16)
-  const g = parseInt(h.slice(2, 4), 16)
-  const b = parseInt(h.slice(4, 6), 16)
-  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.55
 }
 
 /** Cellular signal — 4 ascending rounded capsules (SF / One UI / Material). */
@@ -253,18 +238,17 @@ export function drawBattery(
   pct: number,
   ink: string,
   style: BatteryStyle = 'oneui',
-  opts?: { charging?: boolean; percentInside?: boolean; fontFamily?: string },
+  opts?: { charging?: boolean },
 ): { obj: FabricObj; width: number; height: number; objs: FabricObj[] } {
   const level = Math.max(0, Math.min(100, pct))
   const charging = Boolean(opts?.charging)
-  const percentInside = Boolean(opts?.percentInside) && style === 'ios'
-  const bodyW = style === 'ios' ? (percentInside ? 33 : 27.5) : style === 'material' ? 24 : 25
-  const bodyH = style === 'ios' ? (percentInside ? 13 : 12.5) : 11.5
+  const bodyW = style === 'ios' ? 27.5 : style === 'material' ? 24 : 25
+  const bodyH = style === 'ios' ? 12.5 : 11.5
   const tipW = style === 'ios' ? 1.7 : 1.6
   const tipGap = 0.55
-  const { height } = batterySize(style, { percentInside })
+  const { height } = batterySize(style)
   const r = bodyH * (style === 'ios' ? 0.38 : 0.34)
-  const stroke = style === 'ios' ? (percentInside ? 1.55 : 1.4) : 1.25
+  const stroke = style === 'ios' ? 1.4 : 1.25
   const critical = level <= 20
   const warn = level <= 30 && level > 20
 
@@ -275,42 +259,22 @@ export function drawBattery(
   else if (critical) fillColor = style === 'ios' ? '#FF3B30' : '#D93025'
   else if (warn && style !== 'ios') fillColor = '#F9AB00'
 
-  const tipH = bodyH * (style === 'ios' ? 0.4 : 0.4)
+  const tipH = bodyH * 0.4
   const tipTop = top + (bodyH - tipH) / 2
 
-  const inset = stroke + (style === 'ios' ? (percentInside ? 1.35 : 1.2) : 1.1)
+  const inset = stroke + (style === 'ios' ? 1.2 : 1.1)
   const innerH = bodyH - inset * 2
   const innerR = Math.max(0.9, innerH / 2.2)
   const maxFill = bodyW - inset * 2
   const fillRatio = level >= 97 ? 1 : Math.max(0.08, level / 100)
   let fillW = Math.max(innerH * 0.45, maxFill * fillRatio)
-  if (charging && !percentInside) fillW = Math.max(fillW, maxFill * 0.85)
+  if (charging) fillW = Math.max(fillW, maxFill * 0.85)
 
   const objs: FabricObj[] = [
     {
       ...strokedRect(`${id}Out`, left, top, bodyW, bodyH, outline, r, stroke),
       receiptGroup: 'chrome',
     },
-  ]
-
-  // iOS empty track (translucent body behind fill) — matches real Battery Percentage look
-  if (percentInside) {
-    objs.push({
-      ...rect(
-        `${id}Track`,
-        left + inset,
-        top + inset,
-        maxFill,
-        innerH,
-        ink,
-        innerR,
-      ),
-      opacity: 0.35,
-      receiptGroup: 'chrome',
-    })
-  }
-
-  objs.push(
     {
       ...rect(
         `${id}Fill`,
@@ -327,33 +291,9 @@ export function drawBattery(
       ...rect(`${id}Tip`, left + bodyW + tipGap, tipTop, tipW, tipH, outline, tipW / 2),
       receiptGroup: 'chrome',
     },
-  )
+  ]
 
-  if (percentInside) {
-    const pctStr = String(Math.round(level))
-    const fontSize = pctStr.length >= 3 ? 9.2 : 10
-    const fontFamily = opts?.fontFamily || '-apple-system, SF Pro Text, Helvetica Neue, sans-serif'
-    // Dark digits on white fill; white on green/red (charging / critical)
-    const pctColor =
-      charging || critical ? '#FFFFFF' : inkIsLight(ink) ? '#000000' : '#FFFFFF'
-    objs.push({
-      ...label(
-        'battery',
-        pctStr,
-        top + (bodyH - fontSize) / 2 - 0.35,
-        left + bodyW / 2,
-        fontSize,
-        700,
-        fontFamily,
-        pctColor,
-        { originX: 'center' },
-      ),
-      receiptGroup: 'chrome',
-      selectable: false,
-      editable: false,
-      evented: false,
-    })
-  } else if (charging) {
+  if (charging) {
     const boltH = bodyH - 2.4
     const scaleY = boltH / 14
     const scaleX = (bodyW * 0.28) / 10
