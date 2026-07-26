@@ -74,15 +74,42 @@ function fail(string $message, int $code = 400): void {
 }
 
 function cors(): void {
-  $origin = app_config()['cors_origin'] ?? '*';
-  header('Access-Control-Allow-Origin: ' . $origin);
-  header('Access-Control-Allow-Credentials: true');
+  security_headers();
+  $cfg = app_config();
+  $allowed = trim((string)($cfg['cors_origin'] ?? ''));
+  $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+  // Never reflect arbitrary Origin. Pin to configured app origin (or omit CORS).
+  if ($allowed !== '' && $allowed !== '*') {
+    if ($requestOrigin !== '' && strcasecmp($requestOrigin, $allowed) === 0) {
+      header('Access-Control-Allow-Origin: ' . $allowed);
+      header('Vary: Origin');
+      header('Access-Control-Allow-Credentials: true');
+    } elseif ($requestOrigin === '') {
+      // Same-origin browser navigations / curl — no ACAO needed
+    } else {
+      // Cross-origin mismatch: do not grant CORS
+    }
+  } elseif ($allowed === '*') {
+    // Credentials cannot be used with *; keep simple public read for local demos only
+    header('Access-Control-Allow-Origin: *');
+  }
+
   header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Session-Token');
   header('Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS');
   if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
   }
+}
+
+/** Baseline API response hardening. */
+function security_headers(): void {
+  header('X-Content-Type-Options: nosniff');
+  header('X-Frame-Options: DENY');
+  header('Referrer-Policy: strict-origin-when-cross-origin');
+  header('Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()');
+  header('Cache-Control: no-store');
 }
 
 function bearer_token(): ?string {

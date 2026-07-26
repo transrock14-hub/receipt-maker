@@ -16,6 +16,23 @@ try {
     fail('Use setup-local.php for SQLite');
   }
 
+  // Gate installer: require ?key= matching install_secret (always in production).
+  $provider = (string)($cfg['crypto_provider'] ?? 'demo');
+  $secret = trim((string)($cfg['install_secret'] ?? ''));
+  $key = (string)($_GET['key'] ?? $_SERVER['HTTP_X_INSTALL_KEY'] ?? '');
+  if ($provider !== 'demo') {
+    if ($secret === '' || $secret === 'change-me-install') {
+      fail('Install locked. Set a strong install_secret in config.local.php', 403);
+    }
+    if ($key === '' || !hash_equals($secret, $key)) {
+      fail('Install key required', 403);
+    }
+  } elseif ($secret !== '' && $secret !== 'change-me-install') {
+    if ($key === '' || !hash_equals($secret, $key)) {
+      fail('Install key required', 403);
+    }
+  }
+
   ensure_mysql_schema();
   ensure_activity_schema();
 
@@ -32,11 +49,8 @@ try {
   $stmt->execute([$username]);
   $existing = $stmt->fetch();
   if ($existing) {
-    respond([
-      'ok' => true,
-      'message' => 'Schema ready. Admin already exists. You can delete install.php now.',
-      'username' => $username,
-    ]);
+    // Do not leak usernames once installed — refuse re-install probes
+    fail('Already installed. Delete or rename install.php.', 403);
   }
 
   $hash = password_hash($password, PASSWORD_DEFAULT);

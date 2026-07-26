@@ -137,6 +137,16 @@ export const api = {
         timezone: clientTimezone(),
       },
     }).catch(() => ({ ok: true as const })),
+  /** Server entitlement check before download/copy (banned / expired accounts fail here). */
+  assertExportAllowed: (kind: 'download' | 'copy' | 'batch', meta?: Record<string, unknown>) =>
+    request<{ ok: true; can_download: true; username: string }>('/export/check', {
+      method: 'POST',
+      json: {
+        kind,
+        timezone: clientTimezone(),
+        ...meta,
+      },
+    }),
   plans: () => request<{ ok: true; plans: Plan[] }>('/plans'),
   createPayment: (plan_id: string) =>
     request<{

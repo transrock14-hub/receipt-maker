@@ -8,6 +8,8 @@
     radial-gradient(circle at 20% 0%, rgba(122, 90, 248, 0.06), transparent 40%),
     #e9e8ef;
   position: relative;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .editor-stage-compact {

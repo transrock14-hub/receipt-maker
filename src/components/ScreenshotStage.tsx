@@ -30,7 +30,10 @@ export function ScreenshotStage({
   const showFramed = Boolean(showFrame && framedPreviewUrl && !analyzing)
 
   return (
-    <div className={`screenshot-stage${analyzing || (composing && !showFramed) ? ' is-analyzing' : ''}`}>
+    <div
+      className={`screenshot-stage${analyzing || (composing && !showFramed) ? ' is-analyzing' : ''}`}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <section className="screenshot-pane">
         <header className="screenshot-pane-head">
           <span className="screenshot-badge">Screenshot</span>

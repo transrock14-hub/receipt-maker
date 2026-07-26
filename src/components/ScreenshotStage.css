@@ -10,6 +10,8 @@
     radial-gradient(circle at 50% 0%, rgba(40, 40, 48, 0.06), transparent 50%),
     #e8e8ec;
   overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .screenshot-pane {

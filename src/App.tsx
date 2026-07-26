@@ -621,6 +621,14 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
       void api.trackActivity('open_billing', 'Tried download while locked')
       return
     }
+    try {
+      await api.assertExportAllowed('download', { device: deviceId, institution: institutionId })
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : 'Download locked')
+      onOpenBilling?.()
+      toast.error(err instanceof Error ? err.message : 'Download locked')
+      return
+    }
     const canvas = prepareCapture()
     if (!canvas) return
     const device = getDevice(deviceId)
@@ -660,6 +668,14 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
       void api.trackActivity('open_billing', 'Tried copy while locked')
       return
     }
+    try {
+      await api.assertExportAllowed('copy', { device: deviceId, institution: institutionId })
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : 'Copy locked')
+      onOpenBilling?.()
+      toast.error(err instanceof Error ? err.message : 'Copy locked')
+      return
+    }
     const canvas = prepareCapture()
     if (!canvas) return
     try {
@@ -675,7 +691,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
       setStatus(err instanceof Error ? err.message : 'Copy failed')
       toast.error(err instanceof Error ? err.message : 'Copy failed')
     }
-  }, [deviceId, institutionId, exportGrain, canDownload, onOpenBilling, prepareCapture])
+  }, [deviceId, institutionId, exportGrain, canDownload, onOpenBilling, prepareCapture, toast])
 
   const collectFieldsFromCanvas = useCallback((canvas: Canvas): TemplateField[] => {
     const fields: TemplateField[] = []
@@ -931,6 +947,13 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
   const handleBatchExport = useCallback(async () => {
     if (!canDownload) {
       setStatus('Downloads locked — open Billing to unlock batch export.')
+      onOpenBilling?.()
+      return
+    }
+    try {
+      await api.assertExportAllowed('batch', { institution: institutionId })
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : 'Download locked')
       onOpenBilling?.()
       return
     }

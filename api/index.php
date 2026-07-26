@@ -44,6 +44,9 @@ function route(string $method, string $path): void {
   if ($method === 'POST' && $path === '/activity') {
     handle_activity_track();
   }
+  if ($method === 'POST' && $path === '/export/check') {
+    handle_export_check();
+  }
 
   if ($method === 'GET' && $path === '/plans') {
     handle_plans();
@@ -92,7 +95,7 @@ function route(string $method, string $path): void {
 }
 
 function handle_register(): void {
-  rate_limit('register', 8, 600);
+  rate_limit('register', 5, 600);
   $body = json_input();
   $username = normalize_username((string)($body['username'] ?? $body['email'] ?? ''));
   $password = (string)($body['password'] ?? '');
@@ -125,7 +128,7 @@ function handle_register(): void {
 }
 
 function handle_login(): void {
-  rate_limit('login', 20, 300);
+  rate_limit('login', 12, 300);
   $body = json_input();
   $login = (string)($body['username'] ?? $body['email'] ?? '');
   $password = (string)($body['password'] ?? '');
@@ -354,7 +357,13 @@ function handle_demo_complete(): void {
 function handle_nowpayments_webhook(): void {
   $raw = file_get_contents('php://input') ?: '';
   $cfg = app_config();
-  $secret = $cfg['nowpayments_ipn_secret'] ?? '';
+  $secret = trim((string)($cfg['nowpayments_ipn_secret'] ?? ''));
+  $provider = (string)($cfg['crypto_provider'] ?? 'demo');
+
+  // Production payments must verify IPN signatures — never accept unsigned webhooks.
+  if ($provider === 'nowpayments' && ($secret === '' || strlen($secret) < 8)) {
+    fail('IPN secret not configured', 503);
+  }
 
   if ($secret !== '') {
     $sig = $_SERVER['HTTP_X_NOWPAYMENTS_SIG'] ?? '';
@@ -362,6 +371,8 @@ function handle_nowpayments_webhook(): void {
     if (!$sig || !hash_equals($calc, $sig)) {
       fail('Invalid IPN signature', 401);
     }
+  } elseif ($provider !== 'demo') {
+    fail('IPN signature required', 401);
   }
 
   $data = json_decode($raw, true);
@@ -577,6 +588,40 @@ function handle_admin_stats(): void {
   ]);
 }
 
+/** Server-side entitlement gate before client download/copy. */
+function handle_export_check(): void {
+  rate_limit('export_check', 40, 60);
+  $user = require_user();
+  $access = user_access($user);
+  if (!empty($access['banned'])) {
+    fail('Account banned', 403);
+  }
+  if (empty($access['can_download'])) {
+    fail('Download locked — subscribe to unlock', 403);
+  }
+  $body = json_input();
+  $kind = strtolower(trim((string)($body['kind'] ?? 'download')));
+  if (!in_array($kind, ['download', 'copy', 'batch'], true)) {
+    $kind = 'download';
+  }
+  log_activity(
+    'export_authorized',
+    $user,
+    'Export authorized · ' . $kind,
+    [
+      'kind' => $kind,
+      'device' => isset($body['device']) ? substr((string)$body['device'], 0, 64) : null,
+      'institution' => isset($body['institution']) ? substr((string)$body['institution'], 0, 64) : null,
+    ],
+    isset($body['timezone']) ? (string)$body['timezone'] : null,
+  );
+  respond([
+    'ok' => true,
+    'can_download' => true,
+    'username' => (string)($user['username'] ?? ''),
+  ]);
+}
+
 /** Client-reported product actions (download, copy, generate…). */
 function handle_activity_track(): void {
   $user = require_user();
@@ -591,6 +636,14 @@ function handle_activity_track(): void {
     'open_billing' => 'Opened billing',
   ];
   if (!isset($allowed[$action])) fail('Unknown activity action');
+
+  // Honor-system tracking still requires an entitled account for export actions
+  if (in_array($action, ['download_screenshot', 'copy_screenshot', 'batch_export'], true)) {
+    $access = user_access($user);
+    if (empty($access['can_download'])) {
+      fail('Download locked — subscribe to unlock', 403);
+    }
+  }
 
   $detail = isset($body['detail']) && is_string($body['detail'])
     ? substr($body['detail'], 0, 255)

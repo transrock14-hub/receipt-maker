@@ -58,7 +58,10 @@ export function EditorCanvas({
   }, [])
 
   return (
-    <div className={`editor-stage${compact ? ' editor-stage-compact' : ''}`}>
+    <div
+      className={`editor-stage${compact ? ' editor-stage-compact' : ''}`}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <div className="editor-viewport">
         <div className="editor-frame">
           <div

@@ -18,9 +18,14 @@ return [
   // App
   'app_url' => 'http://localhost:5173',
   'api_url' => 'http://localhost:8080',
+  // Must be the exact SPA origin in production (e.g. https://codecircuit.space)
   'cors_origin' => 'http://localhost:5173',
   'session_days' => 30,
   'trial_days' => 3,
+
+  // One-time installer lock. Required when crypto_provider is not "demo".
+  // Visit /api/install.php?key=YOUR_SECRET once, then leave install.php or rotate the key.
+  'install_secret' => 'change-me-install',
 
   // First admin (created by /api/install.php or setup-local.php)
   'admin_username' => 'admin',
@@ -28,7 +33,7 @@ return [
   'admin_name' => 'Admin',
 
   // Crypto — NOWPayments (https://nowpayments.io)
-  // Set provider to "demo" for local testing without keys
+  // Production MUST use nowpayments with a non-empty IPN secret.
   'crypto_provider' => 'demo', // demo | nowpayments
   'nowpayments_api_key' => '',
   'nowpayments_ipn_secret' => '',
