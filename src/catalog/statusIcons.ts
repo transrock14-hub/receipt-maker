@@ -41,28 +41,16 @@ function polar(cx: number, cy: number, r: number, deg: number): [number, number]
 }
 
 /**
- * Solid annular sector (filled arc band) — no stroked curves, no center seam.
- * Angles in degrees (SVG: 0° = east, CW with sweep=1).
+ * Open circular arc as path commands (for stroked Wi‑Fi rings).
+ * SVG: 0° = east, sweep=1 = clockwise.
  */
-function arcBandPath(
-  cx: number,
-  cy: number,
-  rOut: number,
-  rIn: number,
-  a0: number,
-  a1: number,
-): PathCmd[] {
-  const [x0, y0] = polar(cx, cy, rOut, a0)
-  const [x1, y1] = polar(cx, cy, rOut, a1)
-  const [x2, y2] = polar(cx, cy, rIn, a1)
-  const [x3, y3] = polar(cx, cy, rIn, a0)
+function arcStrokePath(cx: number, cy: number, r: number, a0: number, a1: number): PathCmd[] {
+  const [x0, y0] = polar(cx, cy, r, a0)
+  const [x1, y1] = polar(cx, cy, r, a1)
   const large = Math.abs(a1 - a0) > 180 ? 1 : 0
   return [
     ['M', x0, y0],
-    ['A', rOut, rOut, 0, large, 1, x1, y1],
-    ['L', x2, y2],
-    ['A', rIn, rIn, 0, large, 0, x3, y3],
-    ['Z'],
+    ['A', r, r, 0, large, 1, x1, y1],
   ]
 }
 
@@ -122,8 +110,9 @@ export function drawSignal(
 }
 
 /**
- * Wi‑Fi fan — device-accurate solid arc bands + nub.
- * One UI: bolder, slightly flatter sweep. iOS: tighter SF-style. Material: in between.
+ * Wi‑Fi fan — thick stroked circular arcs + nub (device-tuned).
+ * Stroked open arcs avoid Fabric fill artifacts that left a dark “cap” seam
+ * in filled annular bands.
  */
 export function drawWifi(
   id: string,
@@ -138,47 +127,48 @@ export function drawWifi(
   const level = Math.max(0, Math.min(3, Math.round(strength)))
 
   const cx = width / 2
-  const cy =
-    style === 'oneui' ? height * 0.92 : style === 'material' ? height * 0.9 : height * 0.88
-  const a0 = style === 'oneui' ? 208 : style === 'material' ? 210 : 212
-  const a1 = style === 'oneui' ? 332 : style === 'material' ? 330 : 328
+  // Pivot just below the icon so arcs open upward
+  const cy = style === 'oneui' ? height + 0.35 : style === 'material' ? height + 0.2 : height + 0.1
+  const a0 = style === 'oneui' ? 212 : style === 'material' ? 214 : 216
+  const a1 = style === 'oneui' ? 328 : style === 'material' ? 326 : 324
 
+  // Radius + stroke width per ring (outer → inner). Clear gaps between rings.
   const rings =
     style === 'oneui'
       ? [
-          { out: 11.2, inn: 8.85 },
-          { out: 7.55, inn: 5.35 },
-          { out: 4.05, inn: 2.15 },
+          { r: 10.35, sw: 2.15 },
+          { r: 7.05, sw: 2.15 },
+          { r: 3.75, sw: 2.15 },
         ]
       : style === 'material'
         ? [
-            { out: 10.8, inn: 8.55 },
-            { out: 7.25, inn: 5.2 },
-            { out: 3.9, inn: 2.05 },
+            { r: 10.0, sw: 2.05 },
+            { r: 6.85, sw: 2.05 },
+            { r: 3.65, sw: 2.05 },
           ]
         : [
-            { out: 10.4, inn: 8.35 },
-            { out: 7.0, inn: 5.1 },
-            { out: 3.75, inn: 2.05 },
+            { r: 9.7, sw: 1.95 },
+            { r: 6.6, sw: 1.95 },
+            { r: 3.5, sw: 1.95 },
           ]
 
   const objs: FabricObj[] = rings.map((ring, i) => {
     const litAt = 3 - i
-    return pathObj(
-      `${id}a${i}`,
-      left,
-      top,
-      arcBandPath(cx, cy, ring.out, ring.inn, a0, a1),
-      ink,
-      {
-        opacity: level === 0 ? 0.16 : level >= litAt ? 1 : 0.2,
-      },
-    )
+    return pathObj(`${id}a${i}`, left, top, arcStrokePath(cx, cy, ring.r, a0, a1), '', {
+      fill: '',
+      stroke: ink,
+      strokeWidth: ring.sw,
+      strokeLineCap: 'round',
+      strokeLineJoin: 'round',
+      strokeUniform: true,
+      opacity: level === 0 ? 0.16 : level >= litAt ? 1 : 0.22,
+    })
   })
 
-  const nubR = style === 'oneui' ? 1.7 : style === 'material' ? 1.6 : 1.5
+  const nubR = style === 'oneui' ? 1.65 : style === 'material' ? 1.55 : 1.45
+  const nubCy = cy - rings[2].r * 0.15
   objs.push(
-    circle(`${id}dot`, left + cx - nubR, top + cy - nubR * 0.35 - nubR, nubR, ink, {
+    circle(`${id}dot`, left + cx - nubR, top + nubCy - nubR, nubR, ink, {
       receiptGroup: 'chrome',
       opacity: level === 0 ? 0.16 : 1,
     }),

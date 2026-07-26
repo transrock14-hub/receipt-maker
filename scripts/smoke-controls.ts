@@ -171,9 +171,9 @@ check('charging adds green battery fill + bolt objects', () => {
   if (!wifi || String(wifi.type).toLowerCase() !== 'path') {
     throw new Error('Wi‑Fi should use Path arcs')
   }
-  // Solid fill bands (not stroked) — avoid the old center-seam bug
-  if (String(wifi.fill || '').includes('rgba(0,0,0,0)') || Number(wifi.strokeWidth || 0) > 0) {
-    throw new Error('Wi‑Fi arcs should be solid filled bands, not stroked curves')
+  // Stroked open arcs (not filled bands) — avoids Fabric annular fill seams
+  if (!(Number(wifi.strokeWidth || 0) > 0)) {
+    throw new Error('Wi‑Fi arcs should be stroked')
   }
   if (wifiSize('oneui').width <= wifiSize('ios').width) {
     throw new Error('One UI Wi‑Fi should be slightly wider than iOS')
