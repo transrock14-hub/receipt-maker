@@ -175,3 +175,62 @@
     bottom: 0.85rem;
   }
 }
+
+/* Toolbar / header customer-care menu */
+.support-care {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.support-care-btn {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 32px;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: #fff;
+  background: linear-gradient(160deg, #7a5af8, #5b3fd6);
+  white-space: nowrap;
+  transition: filter 0.12s ease;
+}
+
+.support-care-btn:hover {
+  filter: brightness(1.06);
+}
+
+.support-care.is-open .support-care-btn {
+  background: #1a1630;
+}
+
+.support-care-panel {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 40;
+  width: min(16.5rem, calc(100vw - 2rem));
+  padding: 0.85rem 0.9rem 0.95rem;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba(26, 22, 48, 0.08);
+  box-shadow:
+    0 14px 36px rgba(26, 22, 48, 0.16),
+    0 2px 8px rgba(26, 22, 48, 0.06);
+  animation: support-pop 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.support-care-panel .support-widget-actions {
+  margin-top: 0;
+}
+
+.support-care-panel .support-btn {
+  width: 100%;
+  min-height: 2.1rem;
+  border-radius: 10px;
+}
