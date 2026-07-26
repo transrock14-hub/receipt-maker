@@ -82,6 +82,11 @@ export function AdminPage({ onBack }: Props) {
   const [inviteBusy, setInviteBusy] = useState(false)
   const [lastInvite, setLastInvite] = useState<Invite | null>(null)
 
+  const [supportTelegram, setSupportTelegram] = useState('')
+  const [supportWhatsapp, setSupportWhatsapp] = useState('')
+  const [supportMessage, setSupportMessage] = useState('Need help? Chat with support.')
+  const [supportBusy, setSupportBusy] = useState(false)
+
   const loadActivity = useCallback(async (query?: string, action?: string) => {
     const res = await api.adminActivity({
       q: query || undefined,
@@ -94,16 +99,20 @@ export function AdminPage({ onBack }: Props) {
 
   const load = useCallback(async (query?: string) => {
     try {
-      const [u, p, s, inv] = await Promise.all([
+      const [u, p, s, inv, support] = await Promise.all([
         api.adminUsers(query),
         api.adminPayments(),
         api.adminStats(),
         api.adminInvites(),
+        api.adminSupport(),
       ])
       setUsers(u.users)
       setPayments(p.payments)
       setStats(s.stats)
       setInvites(inv.invites)
+      setSupportTelegram(support.raw.telegram || '')
+      setSupportWhatsapp(support.raw.whatsapp || '')
+      setSupportMessage(support.raw.message || 'Need help? Chat with support.')
       setError(null)
       setLastRefresh(new Date())
     } catch (err) {
@@ -147,6 +156,28 @@ export function AdminPage({ onBack }: Props) {
       toast.error(err instanceof Error ? err.message : 'Update failed')
     } finally {
       setBusyId(null)
+    }
+  }
+
+  const saveSupport = async (e: FormEvent) => {
+    e.preventDefault()
+    setSupportBusy(true)
+    setError(null)
+    try {
+      const res = await api.adminSaveSupport({
+        telegram: supportTelegram.trim(),
+        whatsapp: supportWhatsapp.trim(),
+        message: supportMessage.trim(),
+      })
+      setSupportTelegram(res.raw.telegram || '')
+      setSupportWhatsapp(res.raw.whatsapp || '')
+      setSupportMessage(res.raw.message || '')
+      toast.success('Support contacts saved')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Support save failed')
+      toast.error(err instanceof Error ? err.message : 'Support save failed')
+    } finally {
+      setSupportBusy(false)
     }
   }
 
@@ -266,7 +297,7 @@ export function AdminPage({ onBack }: Props) {
           </button>
         </div>
         <h1>Admin</h1>
-        <p>Invite-only signup, create accounts, monitor activity, ban/extend access, and track payments.</p>
+        <p>Invite-only signup, customer support links, create accounts, monitor activity, and track payments.</p>
       </header>
 
       {stats && (
@@ -293,6 +324,45 @@ export function AdminPage({ onBack }: Props) {
           </div>
         </section>
       )}
+
+      <section className="account-panel">
+        <h2>Customer support</h2>
+        <p className="muted create-hint">
+          Shown on login, in the studio toolbar, and on Billing. Leave a field blank to hide that channel.
+        </p>
+        <form className="create-user-form" onSubmit={(e) => void saveSupport(e)}>
+          <label>
+            Telegram (@username or t.me link)
+            <input
+              value={supportTelegram}
+              onChange={(e) => setSupportTelegram(e.target.value)}
+              placeholder="@yoursupport or https://t.me/yoursupport"
+              autoComplete="off"
+            />
+          </label>
+          <label>
+            WhatsApp (number with country code)
+            <input
+              value={supportWhatsapp}
+              onChange={(e) => setSupportWhatsapp(e.target.value)}
+              placeholder="+971501234567 or https://wa.me/971501234567"
+              autoComplete="off"
+            />
+          </label>
+          <label>
+            Short message
+            <input
+              value={supportMessage}
+              onChange={(e) => setSupportMessage(e.target.value)}
+              placeholder="Need help? Chat with support."
+              maxLength={200}
+            />
+          </label>
+          <button type="submit" className="account-btn primary" disabled={supportBusy}>
+            {supportBusy ? 'Saving…' : 'Save support links'}
+          </button>
+        </form>
+      </section>
 
       <section className="account-panel">
         <h2>Invite codes</h2>

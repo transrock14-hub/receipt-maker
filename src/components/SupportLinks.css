@@ -1,0 +1,64 @@
+.support-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+}
+
+.support-message {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #6b6578;
+  line-height: 1.4;
+}
+
+.support-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.support-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: #fff;
+  transition: filter 0.12s ease, transform 0.1s ease;
+}
+
+.support-btn:hover {
+  filter: brightness(1.06);
+}
+
+.support-btn:active {
+  transform: translateY(1px);
+}
+
+.support-telegram {
+  background: #2aabee;
+}
+
+.support-whatsapp {
+  background: #25d366;
+}
+
+.support-compact {
+  margin-top: 0;
+}
+
+.support-compact .support-actions {
+  gap: 0.35rem;
+}
+
+.support-compact .support-btn {
+  min-height: 1.85rem;
+  padding: 0.28rem 0.7rem;
+  font-size: 0.72rem;
+  border-radius: 8px;
+}

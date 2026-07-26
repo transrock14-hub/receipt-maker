@@ -15,6 +15,7 @@ $path = rtrim($path, '/') ?: '/';
 try {
   ensure_activity_schema();
   ensure_invites_schema();
+  ensure_settings_schema();
   route($method, $path);
 } catch (Throwable $e) {
   respond([
@@ -52,6 +53,9 @@ function route(string $method, string $path): void {
   if ($method === 'GET' && $path === '/plans') {
     handle_plans();
   }
+  if ($method === 'GET' && $path === '/support') {
+    handle_support_get();
+  }
   if ($method === 'POST' && $path === '/payments/create') {
     handle_payment_create();
   }
@@ -83,6 +87,12 @@ function route(string $method, string $path): void {
   }
   if ($method === 'POST' && $path === '/admin/invites/revoke') {
     handle_admin_invite_revoke();
+  }
+  if ($method === 'GET' && $path === '/admin/support') {
+    handle_admin_support_get();
+  }
+  if ($method === 'POST' && $path === '/admin/support') {
+    handle_admin_support_save();
   }
   if ($method === 'GET' && $path === '/admin/payments') {
     handle_admin_payments();
@@ -359,6 +369,58 @@ function handle_me(): void {
 function handle_plans(): void {
   $rows = db()->query('SELECT id, name, price_usdt, days FROM plans WHERE active = 1 ORDER BY days ASC')->fetchAll();
   respond(['ok' => true, 'plans' => $rows]);
+}
+
+function handle_support_get(): void {
+  respond(['ok' => true, 'support' => public_support()]);
+}
+
+function handle_admin_support_get(): void {
+  require_admin();
+  respond([
+    'ok' => true,
+    'support' => public_support(),
+    'raw' => [
+      'telegram' => setting_get('support_telegram', ''),
+      'whatsapp' => setting_get('support_whatsapp', ''),
+      'message' => setting_get('support_message', 'Need help? Chat with support.'),
+    ],
+  ]);
+}
+
+function handle_admin_support_save(): void {
+  $admin = require_admin();
+  $body = json_input();
+  $telegram = trim((string)($body['telegram'] ?? ''));
+  $whatsapp = trim((string)($body['whatsapp'] ?? ''));
+  $message = trim((string)($body['message'] ?? ''));
+  if (strlen($message) > 200) $message = substr($message, 0, 200);
+
+  // Store raw-ish values; normalize on read for links
+  $tgStore = $telegram;
+  if ($tgStore !== '' && !preg_match('#^https?://#i', $tgStore)) {
+    $tgStore = ltrim($tgStore, '@');
+  }
+  $waStore = $whatsapp;
+
+  setting_set('support_telegram', $tgStore);
+  setting_set('support_whatsapp', $waStore);
+  setting_set('support_message', $message !== '' ? $message : 'Need help? Chat with support.');
+
+  log_activity('admin_support_update', $admin, 'Updated customer support contacts', [
+    'telegram' => $tgStore !== '',
+    'whatsapp' => $waStore !== '',
+  ]);
+
+  respond([
+    'ok' => true,
+    'support' => public_support(),
+    'raw' => [
+      'telegram' => setting_get('support_telegram', ''),
+      'whatsapp' => setting_get('support_whatsapp', ''),
+      'message' => setting_get('support_message', ''),
+    ],
+  ]);
 }
 
 function handle_payment_create(): void {

@@ -324,6 +324,94 @@ function ensure_invites_schema(): void {
   );
 }
 
+/** Key/value app settings (support contacts, etc.). */
+function ensure_settings_schema(): void {
+  static $done = false;
+  if ($done) return;
+  $done = true;
+  $pdo = db();
+  if (db_driver() === 'sqlite') {
+    $pdo->exec(
+      "CREATE TABLE IF NOT EXISTS app_settings (
+        setting_key TEXT PRIMARY KEY,
+        setting_value TEXT NOT NULL DEFAULT '',
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )"
+    );
+    return;
+  }
+  $pdo->exec(
+    "CREATE TABLE IF NOT EXISTS app_settings (
+      setting_key VARCHAR(64) PRIMARY KEY,
+      setting_value TEXT NOT NULL,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+  );
+}
+
+function setting_get(string $key, string $default = ''): string {
+  ensure_settings_schema();
+  $stmt = db()->prepare('SELECT setting_value FROM app_settings WHERE setting_key = ? LIMIT 1');
+  $stmt->execute([$key]);
+  $row = $stmt->fetch();
+  if (!$row) return $default;
+  return (string)$row['setting_value'];
+}
+
+function setting_set(string $key, string $value): void {
+  ensure_settings_schema();
+  if (db_driver() === 'sqlite') {
+    db()->prepare(
+      'INSERT INTO app_settings (setting_key, setting_value, updated_at) VALUES (?, ?, ' . sql_now() . ')
+       ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value, updated_at = ' . sql_now()
+    )->execute([$key, $value]);
+    return;
+  }
+  db()->prepare(
+    'INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)'
+  )->execute([$key, $value]);
+}
+
+/** Normalize Telegram handle/URL → https://t.me/... or empty. */
+function normalize_telegram(string $raw): string {
+  $raw = trim($raw);
+  if ($raw === '') return '';
+  if (preg_match('#^https?://#i', $raw)) {
+    return preg_replace('#^http://#i', 'https://', $raw) ?? $raw;
+  }
+  $raw = ltrim($raw, '@');
+  $raw = preg_replace('#^(t\.me/|telegram\.me/)#i', '', $raw) ?? $raw;
+  $raw = preg_replace('/[^A-Za-z0-9_]/', '', $raw) ?? '';
+  if ($raw === '') return '';
+  return 'https://t.me/' . $raw;
+}
+
+/** Normalize WhatsApp number/URL → https://wa.me/... or empty. */
+function normalize_whatsapp(string $raw): string {
+  $raw = trim($raw);
+  if ($raw === '') return '';
+  if (preg_match('#^https?://#i', $raw)) {
+    return preg_replace('#^http://#i', 'https://', $raw) ?? $raw;
+  }
+  $digits = preg_replace('/\D+/', '', $raw) ?? '';
+  if ($digits === '' || strlen($digits) < 8) return '';
+  return 'https://wa.me/' . $digits;
+}
+
+function public_support(): array {
+  $telegram = normalize_telegram(setting_get('support_telegram', ''));
+  $whatsapp = normalize_whatsapp(setting_get('support_whatsapp', ''));
+  $message = trim(setting_get('support_message', 'Need help? Chat with support.'));
+  if ($message === '') $message = 'Need help? Chat with support.';
+  return [
+    'telegram_url' => $telegram !== '' ? $telegram : null,
+    'whatsapp_url' => $whatsapp !== '' ? $whatsapp : null,
+    'message' => $message,
+    'enabled' => $telegram !== '' || $whatsapp !== '',
+  ];
+}
+
 function client_ip(): string {
   $candidates = [
     $_SERVER['HTTP_CF_CONNECTING_IP'] ?? '',

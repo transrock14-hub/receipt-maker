@@ -126,6 +126,19 @@ export type Invite = {
   status: 'active' | 'used' | 'expired' | 'revoked'
 }
 
+export type SupportInfo = {
+  telegram_url: string | null
+  whatsapp_url: string | null
+  message: string
+  enabled: boolean
+}
+
+export type SupportRaw = {
+  telegram: string
+  whatsapp: string
+  message: string
+}
+
 export const api = {
   health: () => request<{ ok: boolean }>('/health'),
   register: (username: string, password: string, name?: string, invite?: string) =>
@@ -217,6 +230,14 @@ export const api = {
     request<{ ok: true; invite: Invite }>('/admin/invites/revoke', {
       method: 'POST',
       json: { invite_id },
+    }),
+  support: () => request<{ ok: true; support: SupportInfo }>('/support'),
+  adminSupport: () =>
+    request<{ ok: true; support: SupportInfo; raw: SupportRaw }>('/admin/support'),
+  adminSaveSupport: (body: { telegram?: string; whatsapp?: string; message?: string }) =>
+    request<{ ok: true; support: SupportInfo; raw: SupportRaw }>('/admin/support', {
+      method: 'POST',
+      json: body,
     }),
   adminPayments: () =>
     request<{ ok: true; payments: Array<Record<string, unknown>> }>('/admin/payments'),

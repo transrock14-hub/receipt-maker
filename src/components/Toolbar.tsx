@@ -1,5 +1,6 @@
 import './Toolbar.css'
 import type { ScreenshotMode } from '../catalog/deviceFrame'
+import { SupportLinks } from './SupportLinks'
 
 interface Props {
   hasImage: boolean
@@ -171,6 +172,7 @@ export function Toolbar(props: Props) {
                 Billing
               </button>
             )}
+            <SupportLinks compact className="toolbar-support" />
             {props.isAdmin && props.onOpenAdmin && (
               <button type="button" className="btn btn-ghost" onClick={props.onOpenAdmin} title="Admin">
                 Admin

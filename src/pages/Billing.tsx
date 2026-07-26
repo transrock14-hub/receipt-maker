@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, type Plan } from '../auth/api'
 import { useAuth } from '../auth/AuthContext'
 import { useToast } from '../ui/Toast'
+import { SupportLinks } from '../components/SupportLinks'
 import './AccountPages.css'
 
 type Props = {
@@ -229,6 +230,11 @@ export function BillingPage({ onBack }: Props) {
             </tbody>
           </table>
         )}
+      </section>
+
+      <section className="account-panel">
+        <h2>Customer support</h2>
+        <SupportLinks />
       </section>
 
       {error && <p className="account-error">{error}</p>}

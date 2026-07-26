@@ -248,3 +248,13 @@
 .account-group {
   flex-wrap: wrap;
 }
+
+.toolbar-support {
+  display: inline-flex;
+  align-items: center;
+}
+
+.toolbar-support .support-actions {
+  align-items: center;
+}
+
