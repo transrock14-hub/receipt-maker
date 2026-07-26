@@ -570,20 +570,26 @@ function iosStatus(
     objs.push(rect('earpiece', w / 2 - 30, 7, 60, 6, '#000000', 3))
   }
 
-  // iOS: signal · wifi · % · battery (percentage outside the body)
+  // iOS: radio · signal · wifi · % · battery
   const iconTop = island || notch ? 16.5 : 12.5
   const edge = 16
+  const radio = cellularLabel(values)
   const battW = batterySize('ios').width
   const wifiW = wifiSize('ios').width
   const sigW = signalSize(sigOpts).width
   const pctStr = String(pct)
   const pctW = batteryPctWidth(pctStr, 12.5)
+  const radioW = radio ? cellularLabelWidth(radio, 12) : 0
 
   const battLeft = w - edge - battW
   const pctLeft = battLeft - 4.5 - pctW
   const wifiLeft = pctLeft - gap - wifiW
   const sigLeft = wifiLeft - gap - sigW
+  const radioLeft = sigLeft - (radioW ? gap * 0.7 + radioW : 0)
 
+  if (radio) {
+    objs.push(label('cellular', radio, iconTop - 0.15, radioLeft, 12, 600, font, ink))
+  }
   objs.push(
     ...drawSignal('sig', sigLeft, iconTop, ink, { ...sigOpts, style: 'ios' }).objs,
     ...drawWifi('wf', wifiLeft, iconTop - 0.1, ink, mask, wifiLvl, 'ios').objs,

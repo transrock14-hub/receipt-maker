@@ -162,10 +162,19 @@ check('charging adds green battery fill + bolt objects', () => {
     throw new Error(`battery % should be digits only, got ${battText?.text}`)
   }
   // iOS: percentage sits to the left of the battery body
-  const ios = composeScreenshot('iphone-16-pro', 'coinbase-received', { battery: '50', charging: '' }, 'dark')
+  const ios = composeScreenshot(
+    'iphone-16-pro',
+    'coinbase-received',
+    { battery: '50', charging: '', cellular: 'LTE' },
+    'dark',
+  )
   const iosPct = objs(ios).find((o) => o.receiptId === 'battery')
   if (String(iosPct?.text) !== '50' || Number(iosPct?.opacity ?? 1) < 0.5) {
     throw new Error('iOS should show visible battery percentage')
+  }
+  const iosRadio = objs(ios).find((o) => o.receiptId === 'cellular')
+  if (String(iosRadio?.text) !== 'LTE') {
+    throw new Error(`iOS should show Cellular label LTE, got ${iosRadio?.text}`)
   }
   const iosOut = objs(ios).find((o) => o.receiptId === 'battOut')
   const iosFill = objs(ios).find((o) => o.receiptId === 'battFill')
@@ -174,6 +183,11 @@ check('charging adds green battery fill + bolt objects', () => {
   const pctLeft = Number(iosPct?.left)
   if (!(pctLeft + 4 < battLeft)) {
     throw new Error('iOS battery % should sit outside (left of) the battery')
+  }
+  // radio · signal · wifi · % · battery
+  const iosSig = objs(ios).find((o) => o.receiptId === 'sig0')
+  if (Number(iosRadio?.left) >= Number(iosSig?.left)) {
+    throw new Error('iOS Cellular label should sit left of signal bars')
   }
   const iosCharge = composeScreenshot('iphone-16-pro', 'coinbase-received', { battery: '87', charging: '1' }, 'dark')
   const iosChargeFill = objs(iosCharge).find((o) => o.receiptId === 'battFill')
