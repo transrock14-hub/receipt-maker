@@ -103,8 +103,8 @@ export function SupportWidget() {
   return createPortal(
     <div className={`support-widget${open ? ' is-open' : ''}`} ref={rootRef}>
       {open ? (
-        <div className="support-widget-panel" role="dialog" aria-label="Customer support">
-          <p className="support-widget-title">Support</p>
+        <div className="support-widget-panel" role="dialog" aria-label="Contact support">
+          <p className="support-widget-title">Contact support</p>
           <p className="support-widget-msg">{support.message}</p>
           <div className="support-widget-actions">
             {support.telegram_url ? (
@@ -134,18 +134,23 @@ export function SupportWidget() {
         type="button"
         className="support-widget-fab"
         aria-expanded={open}
-        aria-label={open ? 'Close support' : 'Open support'}
+        aria-label={open ? 'Close support' : 'Contact support'}
         onClick={() => setOpen((v) => !v)}
       >
         {open ? (
-          <span aria-hidden>×</span>
+          <span className="support-widget-fab-close" aria-hidden>
+            ×
+          </span>
         ) : (
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16H9l-3.8 3.2A.8.8 0 0 1 4 18.6V6.5Z"
-              fill="currentColor"
-            />
-          </svg>
+          <>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16H9l-3.8 3.2A.8.8 0 0 1 4 18.6V6.5Z"
+                fill="currentColor"
+              />
+            </svg>
+            <span>Contact support</span>
+          </>
         )}
       </button>
     </div>,
