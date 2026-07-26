@@ -555,8 +555,8 @@ function iosStatus(
   const notch = face === 'notch'
   const objs: FabricObj[] = []
   const font = device.fontFamily
-  const gap = 5.75
-  const sigOpts = { barW: 3.15, gap: 1.7, maxH: 11, bars }
+  const gap = 5.25
+  const sigOpts = { barW: 3.05, gap: 1.55, maxH: 10.8, bars }
 
   objs.push(textObj('time', time, island || notch ? 14.5 : 11.5, 28, 15.5, 600, 'time', font, ink))
 
@@ -570,26 +570,25 @@ function iosStatus(
     objs.push(rect('earpiece', w / 2 - 30, 7, 60, 6, '#000000', 3))
   }
 
-  // iOS with Battery Percentage on (standard for receipt mocks):
-  // signal · wifi · % · battery
+  // Real iOS with Battery Percentage on: signal · wifi · battery(with % inside)
   const iconTop = island || notch ? 16.5 : 12.5
-  const edge = 18
-  const battW = batterySize('ios').width
+  const edge = 16
+  const battW = batterySize('ios', { percentInside: true }).width
   const wifiW = wifiSize('ios').width
   const sigW = signalSize(sigOpts).width
-  const pctStr = String(pct)
-  const pctW = batteryPctWidth(pctStr, 12.5)
 
   const battLeft = w - edge - battW
-  const pctLeft = battLeft - 4.5 - pctW
-  const wifiLeft = pctLeft - gap - wifiW
+  const wifiLeft = battLeft - gap - wifiW
   const sigLeft = wifiLeft - gap - sigW
 
   objs.push(
     ...drawSignal('sig', sigLeft, iconTop, ink, { ...sigOpts, style: 'ios' }).objs,
-    ...drawWifi('wf', wifiLeft, iconTop - 0.15, ink, mask, wifiLvl, 'ios').objs,
-    textObj('battery', pctStr, iconTop - 0.35, pctLeft, 12.5, 600, 'battery', font, ink),
-    ...drawBattery('batt', battLeft, iconTop + 0.15, pct, ink, 'ios', { charging }).objs,
+    ...drawWifi('wf', wifiLeft, iconTop - 0.1, ink, mask, wifiLvl, 'ios').objs,
+    ...drawBattery('batt', battLeft, iconTop + 0.05, pct, ink, 'ios', {
+      charging,
+      percentInside: true,
+      fontFamily: font,
+    }).objs,
   )
   return objs
 }

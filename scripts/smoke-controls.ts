@@ -161,19 +161,41 @@ check('charging adds green battery fill + bolt objects', () => {
   if (!/^\d+$/.test(String(battText?.text || ''))) {
     throw new Error(`battery % should be digits only, got ${battText?.text}`)
   }
-  // iOS shows percentage next to battery
-  const ios = composeScreenshot('iphone-16-pro', 'coinbase-received', { battery: '100', charging: '1' }, 'light')
+  // Real iOS: Battery Percentage lives inside the battery body
+  const ios = composeScreenshot('iphone-16-pro', 'coinbase-received', { battery: '50', charging: '' }, 'dark')
   const iosPct = objs(ios).find((o) => o.receiptId === 'battery')
-  if (String(iosPct?.text) !== '100' || Number(iosPct?.opacity ?? 1) < 0.5) {
+  if (String(iosPct?.text) !== '50' || Number(iosPct?.opacity ?? 1) < 0.5) {
     throw new Error('iOS should show visible battery percentage')
+  }
+  if (String(iosPct?.originX) !== 'center') {
+    throw new Error('iOS battery % should be centered inside the battery')
+  }
+  const iosOut = objs(ios).find((o) => o.receiptId === 'battOut')
+  const iosFill = objs(ios).find((o) => o.receiptId === 'battFill')
+  if (!iosOut || !iosFill) throw new Error('iOS battery outline/fill missing')
+  // % text should sit within battery body horizontally
+  const battLeft = Number(iosOut.left)
+  const battW = Number(iosOut.width)
+  const pctLeft = Number(iosPct?.left)
+  if (pctLeft < battLeft || pctLeft > battLeft + battW) {
+    throw new Error('iOS battery % should be inside the battery body')
+  }
+  const iosCharge = composeScreenshot('iphone-16-pro', 'coinbase-received', { battery: '87', charging: '1' }, 'dark')
+  const iosChargeFill = objs(iosCharge).find((o) => o.receiptId === 'battFill')
+  const iosChargeBolt = objs(iosCharge).find((o) => o.receiptId === 'battBolt')
+  if (!String(iosChargeFill?.fill).match(/#34C759/i)) {
+    throw new Error('iOS charging battery should be green')
+  }
+  if (iosChargeBolt) {
+    throw new Error('iOS with % inside should not show a bolt while charging')
   }
   const wifi = objs(ios).find((o) => String(o.receiptId || '').startsWith('wfa'))
   if (!wifi || String(wifi.type).toLowerCase() !== 'path') {
     throw new Error('Wi‑Fi should use Path arcs')
   }
-  // Stroked open arcs (not filled bands) — avoids Fabric annular fill seams
-  if (!(Number(wifi.strokeWidth || 0) > 0)) {
-    throw new Error('Wi‑Fi arcs should be stroked')
+  // Solid filled SF-style bands (bbox-anchored) — not stroked curves
+  if (Number(wifi.strokeWidth || 0) > 0) {
+    throw new Error('Wi‑Fi arcs should be solid filled bands')
   }
   if (wifiSize('oneui').width <= wifiSize('ios').width) {
     throw new Error('One UI Wi‑Fi should be slightly wider than iOS')
@@ -187,7 +209,6 @@ check('charging adds green battery fill + bolt objects', () => {
     if (!Array.isArray(arc.path)) {
       throw new Error('Wi‑Fi path should be Fabric command array')
     }
-    // Corner anchors keep Fabric pathOffset identical across rings
     const hasAnchor = arc.path.some(
       (cmd) =>
         Array.isArray(cmd) &&

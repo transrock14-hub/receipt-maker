@@ -1,8 +1,8 @@
 /**
- * Status-bar icons — match iOS SF Symbols / Android Material / Samsung One UI.
+ * Status-bar icons — match real iOS SF Symbols / Samsung One UI / Material.
  * Prefer Path for curves (Wi‑Fi arcs, lightning); Rect/Circle for bars & battery.
  */
-import { circle, rect, strokedRect, type FabricObj } from './fabricHelpers'
+import { circle, label, rect, strokedRect, type FabricObj } from './fabricHelpers'
 
 export type BatteryStyle = 'ios' | 'oneui' | 'material'
 
@@ -40,26 +40,8 @@ function polar(cx: number, cy: number, r: number, deg: number): [number, number]
   return [cx + r * Math.cos(a), cy + r * Math.sin(a)]
 }
 
-/**
- * Open circular arc as path commands (for stroked Wi‑Fi rings).
- * SVG: 0° = east, sweep=1 = clockwise.
- *
- * Corner L anchors force every ring to share the same Fabric pathOffset /
- * bbox — without them each arc recenters on its own bounds and collapses
- * into a single thick “cap” on the canvas.
- */
-function arcStrokePath(
-  cx: number,
-  cy: number,
-  r: number,
-  a0: number,
-  a1: number,
-  boxW: number,
-  boxH: number,
-): PathCmd[] {
-  const [x0, y0] = polar(cx, cy, r, a0)
-  const [x1, y1] = polar(cx, cy, r, a1)
-  const large = Math.abs(a1 - a0) > 180 ? 1 : 0
+/** Shared icon-box anchors so Fabric pathOffset stays identical across rings. */
+function boxAnchors(boxW: number, boxH: number): PathCmd[] {
   return [
     ['M', 0, 0],
     ['L', 0, 0],
@@ -69,16 +51,47 @@ function arcStrokePath(
     ['L', boxW, boxH],
     ['M', 0, boxH],
     ['L', 0, boxH],
-    ['M', x0, y0],
-    ['A', r, r, 0, large, 1, x1, y1],
   ]
 }
 
-export function batterySize(style: BatteryStyle): { width: number; height: number } {
-  const bodyW = style === 'ios' ? 27.5 : style === 'material' ? 24 : 25
-  const bodyH = style === 'ios' ? 12.5 : 11.5
-  const tipW = style === 'ios' ? 1.75 : 1.6
-  const tipGap = 0.65
+/**
+ * Solid annular sector (filled arc band) — SF / One UI Wi‑Fi look.
+ * Corner anchors keep concentric rings aligned under Fabric pathOffset.
+ */
+function arcBandPath(
+  cx: number,
+  cy: number,
+  rOut: number,
+  rIn: number,
+  a0: number,
+  a1: number,
+  boxW: number,
+  boxH: number,
+): PathCmd[] {
+  const [x0, y0] = polar(cx, cy, rOut, a0)
+  const [x1, y1] = polar(cx, cy, rOut, a1)
+  const [x2, y2] = polar(cx, cy, rIn, a1)
+  const [x3, y3] = polar(cx, cy, rIn, a0)
+  const large = Math.abs(a1 - a0) > 180 ? 1 : 0
+  return [
+    ...boxAnchors(boxW, boxH),
+    ['M', x0, y0],
+    ['A', rOut, rOut, 0, large, 1, x1, y1],
+    ['L', x2, y2],
+    ['A', rIn, rIn, 0, large, 0, x3, y3],
+    ['Z'],
+  ]
+}
+
+export function batterySize(style: BatteryStyle, opts?: { percentInside?: boolean }): {
+  width: number
+  height: number
+} {
+  const inside = Boolean(opts?.percentInside)
+  const bodyW = style === 'ios' ? (inside ? 33 : 27.5) : style === 'material' ? 24 : 25
+  const bodyH = style === 'ios' ? (inside ? 13 : 12.5) : 11.5
+  const tipW = style === 'ios' ? 1.7 : 1.6
+  const tipGap = 0.55
   return { width: bodyW + tipGap + tipW, height: bodyH }
 }
 
@@ -90,9 +103,9 @@ export function signalSize(opts?: { barW?: number; gap?: number; maxH?: number }
 }
 
 export function wifiSize(style: BatteryStyle = 'ios'): { width: number; height: number } {
-  if (style === 'oneui') return { width: 17.2, height: 12.4 }
-  if (style === 'material') return { width: 16.8, height: 12.2 }
-  return { width: 16.2, height: 11.8 }
+  if (style === 'oneui') return { width: 16.6, height: 12.2 }
+  if (style === 'material') return { width: 16.2, height: 12 }
+  return { width: 15.6, height: 11.4 }
 }
 
 export function cellularLabelWidth(labelText: string, size = 11): number {
@@ -101,7 +114,18 @@ export function cellularLabelWidth(labelText: string, size = 11): number {
   return Math.max(11, t.length * size * 0.58 + 1)
 }
 
-/** Cellular signal — 4 ascending rounded capsules. */
+function inkIsLight(ink: string): boolean {
+  const m = ink.trim().match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i)
+  if (!m) return true
+  let h = m[1]
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.55
+}
+
+/** Cellular signal — 4 ascending rounded capsules (SF / One UI / Material). */
 export function drawSignal(
   id: string,
   left: number,
@@ -110,19 +134,24 @@ export function drawSignal(
   opts?: { barW?: number; gap?: number; maxH?: number; bars?: number; style?: BatteryStyle },
 ): { obj: FabricObj; width: number; height: number; objs: FabricObj[] } {
   const style = opts?.style ?? 'ios'
-  const barW = opts?.barW ?? (style === 'oneui' ? 2.9 : style === 'material' ? 3 : 3.15)
-  const gap = opts?.gap ?? (style === 'oneui' ? 1.45 : 1.7)
-  const maxH = opts?.maxH ?? (style === 'oneui' ? 11.4 : 11)
+  const barW =
+    opts?.barW ?? (style === 'oneui' ? 2.85 : style === 'material' ? 2.95 : 3.05)
+  const gap = opts?.gap ?? (style === 'oneui' ? 1.4 : style === 'material' ? 1.55 : 1.55)
+  const maxH = opts?.maxH ?? (style === 'oneui' ? 11.2 : style === 'material' ? 11 : 10.8)
   const active = Math.max(1, Math.min(4, opts?.bars ?? 4))
+  // Real iOS SF Symbol cellularbars: short → tall with soft steps
   const heights =
-    style === 'oneui'
-      ? [0.32, 0.52, 0.74, 1].map((t) => Math.max(3.0, maxH * t))
-      : [0.36, 0.55, 0.76, 1].map((t) => Math.max(3.2, maxH * t))
+    style === 'ios'
+      ? [0.34, 0.52, 0.74, 1].map((t) => Math.max(3.4, maxH * t))
+      : style === 'oneui'
+        ? [0.3, 0.5, 0.72, 1].map((t) => Math.max(3.0, maxH * t))
+        : [0.34, 0.54, 0.74, 1].map((t) => Math.max(3.2, maxH * t))
   const width = heights.length * barW + (heights.length - 1) * gap
-  const r = Math.min(barW / 2, style === 'oneui' ? 0.85 : 1.35)
+  const r = Math.min(barW / 2, style === 'ios' ? 1.15 : style === 'oneui' ? 0.8 : 1.2)
+  const dim = style === 'ios' ? 0.28 : 0.22
   const objs = heights.map((h, i) =>
     rect(`${id}${i}`, left + i * (barW + gap), top + (maxH - h), barW, h, ink, r, {
-      opacity: i < active ? 1 : 0.22,
+      opacity: i < active ? 1 : dim,
       receiptGroup: 'chrome',
     }),
   )
@@ -130,8 +159,8 @@ export function drawSignal(
 }
 
 /**
- * Wi‑Fi fan — thick stroked circular arcs + nub (device-tuned).
- * Paths are bbox-normalized so Fabric keeps rings concentric.
+ * Wi‑Fi fan — solid filled arc bands + nub (device-tuned).
+ * Matches SF Symbol / One UI / Material; bbox anchors keep rings concentric.
  */
 export function drawWifi(
   id: string,
@@ -146,56 +175,51 @@ export function drawWifi(
   const level = Math.max(0, Math.min(3, Math.round(strength)))
 
   const cx = width / 2
-  // Pivot just below the icon so arcs open upward
-  const cy = style === 'oneui' ? height + 0.35 : style === 'material' ? height + 0.2 : height + 0.1
-  const a0 = style === 'oneui' ? 212 : style === 'material' ? 214 : 216
-  const a1 = style === 'oneui' ? 328 : style === 'material' ? 326 : 324
+  const cy = style === 'oneui' ? height * 0.98 : style === 'material' ? height * 0.96 : height * 0.94
+  // SF wifi ~ ±54° from vertical; One UI a touch wider
+  const a0 = style === 'oneui' ? 214 : style === 'material' ? 216 : 218
+  const a1 = style === 'oneui' ? 326 : style === 'material' ? 324 : 322
 
-  // Radius + stroke width per ring (outer → inner). Clear gaps between rings.
   const rings =
     style === 'oneui'
       ? [
-          { r: 10.35, sw: 2.15 },
-          { r: 7.05, sw: 2.15 },
-          { r: 3.75, sw: 2.15 },
+          { out: 10.6, inn: 8.55 },
+          { out: 7.15, inn: 5.2 },
+          { out: 3.85, inn: 2.15 },
         ]
       : style === 'material'
         ? [
-            { r: 10.0, sw: 2.05 },
-            { r: 6.85, sw: 2.05 },
-            { r: 3.65, sw: 2.05 },
+            { out: 10.3, inn: 8.35 },
+            { out: 6.95, inn: 5.1 },
+            { out: 3.7, inn: 2.1 },
           ]
         : [
-            { r: 9.7, sw: 1.95 },
-            { r: 6.6, sw: 1.95 },
-            { r: 3.5, sw: 1.95 },
+            // SF Symbol wifi — solid wedges, tight gaps
+            { out: 10.0, inn: 8.15 },
+            { out: 6.7, inn: 5.0 },
+            { out: 3.55, inn: 2.05 },
           ]
 
+  const dim = style === 'ios' ? 0.28 : 0.2
   const objs: FabricObj[] = rings.map((ring, i) => {
     const litAt = 3 - i
     return pathObj(
       `${id}a${i}`,
       left,
       top,
-      arcStrokePath(cx, cy, ring.r, a0, a1, width, height),
-      'rgba(0,0,0,0)',
+      arcBandPath(cx, cy, ring.out, ring.inn, a0, a1, width, height),
+      ink,
       {
-        fill: 'rgba(0,0,0,0)',
-        stroke: ink,
-        strokeWidth: ring.sw,
-        strokeLineCap: 'round',
-        strokeLineJoin: 'round',
-        strokeUniform: true,
         width,
         height,
         pathOffset: { x: width / 2, y: height / 2 },
-        opacity: level === 0 ? 0.16 : level >= litAt ? 1 : 0.22,
+        opacity: level === 0 ? 0.16 : level >= litAt ? 1 : dim,
       },
     )
   })
 
-  const nubR = style === 'oneui' ? 1.65 : style === 'material' ? 1.55 : 1.45
-  const nubCy = cy - rings[2].r * 0.15
+  const nubR = style === 'oneui' ? 1.55 : style === 'material' ? 1.45 : 1.4
+  const nubCy = cy - 0.15
   objs.push(
     circle(`${id}dot`, left + cx - nubR, top + nubCy - nubR, nubR, ink, {
       receiptGroup: 'chrome',
@@ -229,17 +253,18 @@ export function drawBattery(
   pct: number,
   ink: string,
   style: BatteryStyle = 'oneui',
-  opts?: { charging?: boolean },
+  opts?: { charging?: boolean; percentInside?: boolean; fontFamily?: string },
 ): { obj: FabricObj; width: number; height: number; objs: FabricObj[] } {
   const level = Math.max(0, Math.min(100, pct))
   const charging = Boolean(opts?.charging)
-  const bodyW = style === 'ios' ? 27.5 : style === 'material' ? 24 : 25
-  const bodyH = style === 'ios' ? 12.5 : 11.5
-  const tipW = style === 'ios' ? 1.75 : 1.6
-  const tipGap = 0.65
-  const { height } = batterySize(style)
-  const r = bodyH * (style === 'ios' ? 0.36 : 0.34)
-  const stroke = style === 'ios' ? 1.4 : 1.25
+  const percentInside = Boolean(opts?.percentInside) && style === 'ios'
+  const bodyW = style === 'ios' ? (percentInside ? 33 : 27.5) : style === 'material' ? 24 : 25
+  const bodyH = style === 'ios' ? (percentInside ? 13 : 12.5) : 11.5
+  const tipW = style === 'ios' ? 1.7 : 1.6
+  const tipGap = 0.55
+  const { height } = batterySize(style, { percentInside })
+  const r = bodyH * (style === 'ios' ? 0.38 : 0.34)
+  const stroke = style === 'ios' ? (percentInside ? 1.55 : 1.4) : 1.25
   const critical = level <= 20
   const warn = level <= 30 && level > 20
 
@@ -250,22 +275,42 @@ export function drawBattery(
   else if (critical) fillColor = style === 'ios' ? '#FF3B30' : '#D93025'
   else if (warn && style !== 'ios') fillColor = '#F9AB00'
 
-  const tipH = bodyH * (style === 'ios' ? 0.42 : 0.4)
+  const tipH = bodyH * (style === 'ios' ? 0.4 : 0.4)
   const tipTop = top + (bodyH - tipH) / 2
 
-  const inset = stroke + (style === 'ios' ? 1.2 : 1.1)
+  const inset = stroke + (style === 'ios' ? (percentInside ? 1.35 : 1.2) : 1.1)
   const innerH = bodyH - inset * 2
-  const innerR = Math.max(0.9, innerH / 2.35)
+  const innerR = Math.max(0.9, innerH / 2.2)
   const maxFill = bodyW - inset * 2
-  const fillRatio = level >= 97 ? 1 : Math.max(0.07, level / 100)
-  let fillW = Math.max(innerH * 0.4, maxFill * fillRatio)
-  if (charging) fillW = Math.max(fillW, maxFill * 0.85)
+  const fillRatio = level >= 97 ? 1 : Math.max(0.08, level / 100)
+  let fillW = Math.max(innerH * 0.45, maxFill * fillRatio)
+  if (charging && !percentInside) fillW = Math.max(fillW, maxFill * 0.85)
 
   const objs: FabricObj[] = [
     {
       ...strokedRect(`${id}Out`, left, top, bodyW, bodyH, outline, r, stroke),
       receiptGroup: 'chrome',
     },
+  ]
+
+  // iOS empty track (translucent body behind fill) — matches real Battery Percentage look
+  if (percentInside) {
+    objs.push({
+      ...rect(
+        `${id}Track`,
+        left + inset,
+        top + inset,
+        maxFill,
+        innerH,
+        ink,
+        innerR,
+      ),
+      opacity: 0.35,
+      receiptGroup: 'chrome',
+    })
+  }
+
+  objs.push(
     {
       ...rect(
         `${id}Fill`,
@@ -282,9 +327,33 @@ export function drawBattery(
       ...rect(`${id}Tip`, left + bodyW + tipGap, tipTop, tipW, tipH, outline, tipW / 2),
       receiptGroup: 'chrome',
     },
-  ]
+  )
 
-  if (charging) {
+  if (percentInside) {
+    const pctStr = String(Math.round(level))
+    const fontSize = pctStr.length >= 3 ? 9.2 : 10
+    const fontFamily = opts?.fontFamily || '-apple-system, SF Pro Text, Helvetica Neue, sans-serif'
+    // Dark digits on white fill; white on green/red (charging / critical)
+    const pctColor =
+      charging || critical ? '#FFFFFF' : inkIsLight(ink) ? '#000000' : '#FFFFFF'
+    objs.push({
+      ...label(
+        'battery',
+        pctStr,
+        top + (bodyH - fontSize) / 2 - 0.35,
+        left + bodyW / 2,
+        fontSize,
+        700,
+        fontFamily,
+        pctColor,
+        { originX: 'center' },
+      ),
+      receiptGroup: 'chrome',
+      selectable: false,
+      editable: false,
+      evented: false,
+    })
+  } else if (charging) {
     const boltH = bodyH - 2.4
     const scaleY = boltH / 14
     const scaleX = (bodyW * 0.28) / 10
