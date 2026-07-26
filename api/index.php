@@ -14,6 +14,7 @@ $path = rtrim($path, '/') ?: '/';
 
 try {
   ensure_activity_schema();
+  ensure_invites_schema();
   route($method, $path);
 } catch (Throwable $e) {
   respond([
@@ -74,6 +75,15 @@ function route(string $method, string $path): void {
   if ($method === 'POST' && $path === '/admin/users/update') {
     handle_admin_user_update();
   }
+  if ($method === 'GET' && $path === '/admin/invites') {
+    handle_admin_invites();
+  }
+  if ($method === 'POST' && $path === '/admin/invites/create') {
+    handle_admin_invite_create();
+  }
+  if ($method === 'POST' && $path === '/admin/invites/revoke') {
+    handle_admin_invite_revoke();
+  }
   if ($method === 'GET' && $path === '/admin/payments') {
     handle_admin_payments();
   }
@@ -96,11 +106,23 @@ function route(string $method, string $path): void {
 
 function handle_register(): void {
   rate_limit('register', 5, 600);
+  ensure_invites_schema();
   $body = json_input();
   $username = normalize_username((string)($body['username'] ?? $body['email'] ?? ''));
   $password = (string)($body['password'] ?? '');
   $name = trim((string)($body['name'] ?? ''));
   $timezone = isset($body['timezone']) ? (string)$body['timezone'] : null;
+  $inviteCode = strtoupper(trim((string)($body['invite'] ?? $body['invite_code'] ?? '')));
+  $inviteCode = preg_replace('/[^A-Z0-9\-]/', '', $inviteCode) ?? '';
+
+  $inviteOnly = (bool)(app_config()['invite_only'] ?? true);
+  $invite = null;
+  if ($inviteOnly) {
+    if ($inviteCode === '') {
+      fail('Invite code required — ask an admin for access', 403);
+    }
+    $invite = consume_invite_or_fail($inviteCode);
+  }
 
   validate_username($username);
   if (strlen($password) < 8) fail('Password must be at least 8 characters');
@@ -121,10 +143,171 @@ function handle_register(): void {
   $stmt->execute([$username, $hash, $name, $trialEnds]);
   $userId = (int)db()->lastInsertId();
 
+  if ($invite) {
+    mark_invite_used((int)$invite['id']);
+  }
+
   $token = create_session($userId);
   $user = db()->query("SELECT * FROM users WHERE id = {$userId}")->fetch();
-  log_activity('register', $user, 'Created account', ['trial_days' => $trialDays], $timezone);
+  log_activity('register', $user, 'Created account', [
+    'trial_days' => $trialDays,
+    'invite' => $invite['code'] ?? null,
+  ], $timezone);
   respond(['ok' => true, 'token' => $token, 'user' => public_user($user)]);
+}
+
+/** Validate invite and return row (does not increment uses yet). */
+function consume_invite_or_fail(string $code): array {
+  $stmt = db()->prepare('SELECT * FROM invites WHERE code = ? LIMIT 1');
+  $stmt->execute([$code]);
+  $invite = $stmt->fetch();
+  if (!$invite) fail('Invalid invite code', 403);
+  if (!empty($invite['revoked_at'])) fail('Invite code revoked', 403);
+  if (!empty($invite['expires_at'])) {
+    $exp = strtotime((string)$invite['expires_at']);
+    if ($exp && $exp < time()) fail('Invite code expired', 403);
+  }
+  $uses = (int)($invite['uses'] ?? 0);
+  $max = (int)($invite['max_uses'] ?? 1);
+  if ($uses >= $max) fail('Invite code already used', 403);
+  return $invite;
+}
+
+function mark_invite_used(int $inviteId): void {
+  db()->prepare(
+    'UPDATE invites SET uses = uses + 1, last_used_at = ' . sql_now() . ' WHERE id = ?'
+  )->execute([$inviteId]);
+}
+
+function generate_invite_code(): string {
+  $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  $bytes = random_bytes(8);
+  $out = '';
+  for ($i = 0; $i < 8; $i++) {
+    $out .= $alphabet[ord($bytes[$i]) % strlen($alphabet)];
+  }
+  return substr($out, 0, 4) . '-' . substr($out, 4, 4);
+}
+
+function public_invite(array $row): array {
+  $uses = (int)($row['uses'] ?? 0);
+  $max = (int)($row['max_uses'] ?? 1);
+  $revoked = !empty($row['revoked_at']);
+  $expired = false;
+  if (!empty($row['expires_at'])) {
+    $exp = strtotime((string)$row['expires_at']);
+    $expired = $exp !== false && $exp < time();
+  }
+  $status = 'active';
+  if ($revoked) $status = 'revoked';
+  elseif ($expired) $status = 'expired';
+  elseif ($uses >= $max) $status = 'used';
+
+  return [
+    'id' => (int)$row['id'],
+    'code' => (string)$row['code'],
+    'note' => $row['note'] ?? null,
+    'max_uses' => $max,
+    'uses' => $uses,
+    'expires_at' => $row['expires_at'] ?? null,
+    'revoked_at' => $row['revoked_at'] ?? null,
+    'created_at' => $row['created_at'] ?? null,
+    'last_used_at' => $row['last_used_at'] ?? null,
+    'status' => $status,
+  ];
+}
+
+function handle_admin_invites(): void {
+  require_admin();
+  ensure_invites_schema();
+  $rows = db()->query(
+    'SELECT * FROM invites ORDER BY id DESC LIMIT 200'
+  )->fetchAll();
+  $out = array_map(static fn($r) => public_invite($r), $rows);
+  respond(['ok' => true, 'invites' => $out, 'invite_only' => (bool)(app_config()['invite_only'] ?? true)]);
+}
+
+function handle_admin_invite_create(): void {
+  $admin = require_admin();
+  ensure_invites_schema();
+  $body = json_input();
+  $note = trim((string)($body['note'] ?? ''));
+  if (strlen($note) > 255) $note = substr($note, 0, 255);
+  $maxUses = (int)($body['max_uses'] ?? 1);
+  if ($maxUses < 1) $maxUses = 1;
+  if ($maxUses > 100) $maxUses = 100;
+  $days = (int)($body['expires_days'] ?? 0);
+  $expiresAt = null;
+  if ($days > 0) {
+    $expiresAt = (new DateTimeImmutable("+{$days} days"))->format('Y-m-d H:i:s');
+  }
+
+  $code = strtoupper(trim((string)($body['code'] ?? '')));
+  $code = preg_replace('/[^A-Z0-9\-]/', '', $code) ?? '';
+  if ($code === '') {
+    // Generate unique code
+    for ($i = 0; $i < 8; $i++) {
+      $candidate = generate_invite_code();
+      $check = db()->prepare('SELECT id FROM invites WHERE code = ?');
+      $check->execute([$candidate]);
+      if (!$check->fetch()) {
+        $code = $candidate;
+        break;
+      }
+    }
+  }
+  if ($code === '' || strlen($code) < 4) fail('Could not create invite code');
+
+  $exists = db()->prepare('SELECT id FROM invites WHERE code = ?');
+  $exists->execute([$code]);
+  if ($exists->fetch()) fail('Invite code already exists', 409);
+
+  $stmt = db()->prepare(
+    'INSERT INTO invites (code, created_by, note, max_uses, expires_at)
+     VALUES (?, ?, ?, ?, ?)'
+  );
+  $stmt->execute([
+    $code,
+    (int)$admin['id'],
+    $note !== '' ? $note : null,
+    $maxUses,
+    $expiresAt,
+  ]);
+  $id = (int)db()->lastInsertId();
+  $row = db()->query("SELECT * FROM invites WHERE id = {$id}")->fetch();
+
+  log_activity('admin_invite_create', $admin, "Created invite {$code}", [
+    'invite_id' => $id,
+    'code' => $code,
+    'max_uses' => $maxUses,
+  ]);
+
+  respond(['ok' => true, 'invite' => public_invite($row)]);
+}
+
+function handle_admin_invite_revoke(): void {
+  $admin = require_admin();
+  ensure_invites_schema();
+  $body = json_input();
+  $id = (int)($body['invite_id'] ?? 0);
+  if ($id < 1) fail('invite_id required');
+
+  $stmt = db()->prepare('SELECT * FROM invites WHERE id = ? LIMIT 1');
+  $stmt->execute([$id]);
+  $row = $stmt->fetch();
+  if (!$row) fail('Invite not found', 404);
+
+  db()->prepare(
+    'UPDATE invites SET revoked_at = ' . sql_now() . ' WHERE id = ?'
+  )->execute([$id]);
+
+  log_activity('admin_invite_revoke', $admin, 'Revoked invite ' . $row['code'], [
+    'invite_id' => $id,
+    'code' => $row['code'],
+  ]);
+
+  $fresh = db()->query("SELECT * FROM invites WHERE id = {$id}")->fetch();
+  respond(['ok' => true, 'invite' => public_invite($fresh)]);
 }
 
 function handle_login(): void {

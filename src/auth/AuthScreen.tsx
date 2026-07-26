@@ -15,12 +15,24 @@ function passwordStrength(pw: string): { score: number; label: string } {
   return { score, label: labels[Math.min(score, labels.length - 1)] }
 }
 
+function inviteFromUrl(): string {
+  try {
+    const q = new URLSearchParams(window.location.search)
+    return (q.get('invite') || q.get('code') || '').trim().toUpperCase()
+  } catch {
+    return ''
+  }
+}
+
 export function AuthScreen() {
   const { login, register, error } = useAuth()
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [mode, setMode] = useState<'login' | 'register'>(() =>
+    inviteFromUrl() ? 'register' : 'login',
+  )
   const [username, setUsername] = useState(() => localStorage.getItem(REMEMBER_KEY) || '')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [invite, setInvite] = useState(() => inviteFromUrl())
   const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember] = useState(() => Boolean(localStorage.getItem(REMEMBER_KEY)))
   const [busy, setBusy] = useState(false)
@@ -38,7 +50,7 @@ export function AuthScreen() {
     setLocalError(null)
     try {
       if (mode === 'login') await login(username, password)
-      else await register(username, password, name)
+      else await register(username, password, name, invite.trim())
       if (remember) localStorage.setItem(REMEMBER_KEY, username.trim())
       else localStorage.removeItem(REMEMBER_KEY)
     } catch (err) {
@@ -82,15 +94,29 @@ export function AuthScreen() {
 
         <form className="auth-form" onSubmit={(e) => void submit(e)}>
           {mode === 'register' && (
-            <label>
-              Name
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Alex"
-                autoComplete="name"
-              />
-            </label>
+            <>
+              <label>
+                Invite code
+                <input
+                  value={invite}
+                  onChange={(e) => setInvite(e.target.value.toUpperCase())}
+                  placeholder="XXXX-XXXX"
+                  required
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                />
+              </label>
+              <label>
+                Name
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Alex"
+                  autoComplete="name"
+                />
+              </label>
+            </>
           )}
           <label>
             Username
@@ -104,7 +130,7 @@ export function AuthScreen() {
               autoComplete="username"
               autoCapitalize="none"
               spellCheck={false}
-              autoFocus
+              autoFocus={mode === 'login'}
             />
           </label>
           <label>
@@ -154,8 +180,9 @@ export function AuthScreen() {
         </form>
 
         <p className="auth-note">
-          New accounts get a short free trial. Pay with crypto (USDT) to unlock downloads.
-          For mockups & demos only.
+          {mode === 'register'
+            ? 'Registration is invite-only. Ask an admin for a code, then pay with USDT to unlock downloads.'
+            : 'Invite-only platform. Pay with crypto (USDT) to unlock downloads. For mockups & demos only.'}
         </p>
       </div>
     </div>

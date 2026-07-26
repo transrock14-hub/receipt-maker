@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { api, type ActivityEvent, type AuthUser } from '../auth/api'
+import { api, type ActivityEvent, type AuthUser, type Invite } from '../auth/api'
 import { useAuth } from '../auth/AuthContext'
 import { useToast } from '../ui/Toast'
 import './AccountPages.css'
@@ -34,6 +34,8 @@ function actionLabel(action: string): string {
     payment_finished: 'Payment done',
     admin_user_create: 'Admin · create user',
     admin_user_update: 'Admin · update user',
+    admin_invite_create: 'Admin · invite',
+    admin_invite_revoke: 'Admin · revoke invite',
   }
   return map[action] || action.replace(/_/g, ' ')
 }
@@ -73,6 +75,13 @@ export function AdminPage({ onBack }: Props) {
   const [newPassword, setNewPassword] = useState(() => randomPassword())
   const [paidDays, setPaidDays] = useState(30)
 
+  const [invites, setInvites] = useState<Invite[]>([])
+  const [inviteNote, setInviteNote] = useState('')
+  const [inviteMaxUses, setInviteMaxUses] = useState(1)
+  const [inviteDays, setInviteDays] = useState(14)
+  const [inviteBusy, setInviteBusy] = useState(false)
+  const [lastInvite, setLastInvite] = useState<Invite | null>(null)
+
   const loadActivity = useCallback(async (query?: string, action?: string) => {
     const res = await api.adminActivity({
       q: query || undefined,
@@ -85,14 +94,16 @@ export function AdminPage({ onBack }: Props) {
 
   const load = useCallback(async (query?: string) => {
     try {
-      const [u, p, s] = await Promise.all([
+      const [u, p, s, inv] = await Promise.all([
         api.adminUsers(query),
         api.adminPayments(),
         api.adminStats(),
+        api.adminInvites(),
       ])
       setUsers(u.users)
       setPayments(p.payments)
       setStats(s.stats)
+      setInvites(inv.invites)
       setError(null)
       setLastRefresh(new Date())
     } catch (err) {
@@ -136,6 +147,52 @@ export function AdminPage({ onBack }: Props) {
       toast.error(err instanceof Error ? err.message : 'Update failed')
     } finally {
       setBusyId(null)
+    }
+  }
+
+  const createInvite = async (e: FormEvent) => {
+    e.preventDefault()
+    setInviteBusy(true)
+    setError(null)
+    try {
+      const res = await api.adminCreateInvite({
+        note: inviteNote.trim() || undefined,
+        max_uses: inviteMaxUses,
+        expires_days: inviteDays > 0 ? inviteDays : undefined,
+      })
+      setLastInvite(res.invite)
+      setInviteNote('')
+      setInviteMaxUses(1)
+      setInviteDays(14)
+      await load(q || undefined)
+      toast.success(`Invite ${res.invite.code} created`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Invite create failed')
+      toast.error(err instanceof Error ? err.message : 'Invite create failed')
+    } finally {
+      setInviteBusy(false)
+    }
+  }
+
+  const copyInvite = async (inv: Invite) => {
+    const link = `${window.location.origin}/?invite=${encodeURIComponent(inv.code)}`
+    const text = `Receipt Maker invite\nCode: ${inv.code}\nLink: ${link}`
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success('Invite copied')
+    } catch {
+      setError('Could not copy invite')
+    }
+  }
+
+  const revokeInvite = async (inv: Invite) => {
+    if (!window.confirm(`Revoke invite ${inv.code}?`)) return
+    try {
+      await api.adminRevokeInvite(inv.id)
+      await load(q || undefined)
+      toast.success('Invite revoked')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Revoke failed')
     }
   }
 
@@ -209,7 +266,7 @@ export function AdminPage({ onBack }: Props) {
           </button>
         </div>
         <h1>Admin</h1>
-        <p>Create accounts, monitor logins & activity, ban/extend access, and track payments.</p>
+        <p>Invite-only signup, create accounts, monitor activity, ban/extend access, and track payments.</p>
       </header>
 
       {stats && (
@@ -236,6 +293,111 @@ export function AdminPage({ onBack }: Props) {
           </div>
         </section>
       )}
+
+      <section className="account-panel">
+        <h2>Invite codes</h2>
+        <p className="muted create-hint">
+          Registration requires an invite. Create a code, copy the link, and send it to the customer.
+        </p>
+        <form className="create-user-form" onSubmit={(e) => void createInvite(e)}>
+          <label>
+            Note (optional)
+            <input
+              value={inviteNote}
+              onChange={(e) => setInviteNote(e.target.value)}
+              placeholder="For Alex · agency"
+            />
+          </label>
+          <label>
+            Max uses
+            <input
+              type="number"
+              min={1}
+              max={100}
+              value={inviteMaxUses}
+              onChange={(e) => setInviteMaxUses(Number(e.target.value) || 1)}
+            />
+          </label>
+          <label>
+            Expires (days, 0 = never)
+            <input
+              type="number"
+              min={0}
+              max={3650}
+              value={inviteDays}
+              onChange={(e) => setInviteDays(Number(e.target.value))}
+            />
+          </label>
+          <button type="submit" className="account-btn primary" disabled={inviteBusy}>
+            {inviteBusy ? 'Creating…' : 'Create invite'}
+          </button>
+        </form>
+        {lastInvite && (
+          <div className="credentials-box" style={{ marginTop: '0.85rem' }}>
+            <p>
+              <strong>Latest invite:</strong> <code>{lastInvite.code}</code>
+            </p>
+            <button type="button" className="account-btn" onClick={() => void copyInvite(lastInvite)}>
+              Copy code + link
+            </button>
+          </div>
+        )}
+        <div className="monitor-table-wrap" style={{ marginTop: '1rem' }}>
+          <table className="account-table monitor-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Status</th>
+                <th>Uses</th>
+                <th>Note</th>
+                <th>Expires</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {invites.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="muted">
+                    No invites yet — create one above.
+                  </td>
+                </tr>
+              ) : (
+                invites.map((inv) => (
+                  <tr key={inv.id}>
+                    <td className="mono">
+                      <strong>{inv.code}</strong>
+                    </td>
+                    <td>
+                      <span className={`action-pill action-${inv.status}`}>{inv.status}</span>
+                    </td>
+                    <td className="mono">
+                      {inv.uses}/{inv.max_uses}
+                    </td>
+                    <td>{inv.note || '—'}</td>
+                    <td className="tiny-time">
+                      {inv.expires_at ? new Date(inv.expires_at).toLocaleDateString() : 'Never'}
+                    </td>
+                    <td className="row-actions">
+                      <button type="button" className="account-btn" onClick={() => void copyInvite(inv)}>
+                        Copy
+                      </button>
+                      {inv.status === 'active' ? (
+                        <button
+                          type="button"
+                          className="account-btn danger"
+                          onClick={() => void revokeInvite(inv)}
+                        >
+                          Revoke
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <section className="account-panel">
         <div className="panel-toolbar">

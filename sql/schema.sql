@@ -91,6 +91,22 @@ CREATE TABLE IF NOT EXISTS activity_events (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS invites (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(32) NOT NULL UNIQUE,
+  created_by INT UNSIGNED NULL,
+  note VARCHAR(255) NULL,
+  max_uses INT UNSIGNED NOT NULL DEFAULT 1,
+  uses INT UNSIGNED NOT NULL DEFAULT 0,
+  expires_at DATETIME NULL,
+  revoked_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_used_at DATETIME NULL,
+  INDEX idx_invites_code (code),
+  INDEX idx_invites_created (created_at),
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 INSERT INTO plans (id, name, price_usdt, days, active) VALUES
   ('pro30', 'Pro · 30 days', 29.00, 30, 1),
   ('pro365', 'Pro · 1 year', 199.00, 365, 1)

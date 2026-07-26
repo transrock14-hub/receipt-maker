@@ -14,7 +14,7 @@ type AuthState = {
   loading: boolean
   error: string | null
   login: (username: string, password: string) => Promise<void>
-  register: (username: string, password: string, name?: string) => Promise<void>
+  register: (username: string, password: string, name?: string, invite?: string) => Promise<void>
   logout: () => Promise<void>
   refresh: () => Promise<void>
   setUser: (user: AuthUser | null) => void
@@ -65,9 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user)
   }, [])
 
-  const register = useCallback(async (username: string, password: string, name?: string) => {
+  const register = useCallback(async (username: string, password: string, name?: string, invite?: string) => {
     setError(null)
-    const res = await api.register(username, password, name)
+    const res = await api.register(username, password, name, invite)
     setToken(res.token)
     setUser(res.user)
   }, [])

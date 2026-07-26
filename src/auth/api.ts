@@ -113,12 +113,25 @@ export type ActivityAction =
   | 'save_project'
   | 'open_billing'
 
+export type Invite = {
+  id: number
+  code: string
+  note: string | null
+  max_uses: number
+  uses: number
+  expires_at: string | null
+  revoked_at: string | null
+  created_at: string | null
+  last_used_at: string | null
+  status: 'active' | 'used' | 'expired' | 'revoked'
+}
+
 export const api = {
   health: () => request<{ ok: boolean }>('/health'),
-  register: (username: string, password: string, name?: string) =>
+  register: (username: string, password: string, name?: string, invite?: string) =>
     request<{ ok: true; token: string; user: AuthUser }>('/auth/register', {
       method: 'POST',
-      json: { username, password, name, timezone: clientTimezone() },
+      json: { username, password, name, invite, timezone: clientTimezone() },
     }),
   login: (username: string, password: string) =>
     request<{ ok: true; token: string; user: AuthUser }>('/auth/login', {
@@ -192,6 +205,18 @@ export const api = {
     }>('/admin/users/update', {
       method: 'POST',
       json: body,
+    }),
+  adminInvites: () =>
+    request<{ ok: true; invites: Invite[]; invite_only: boolean }>('/admin/invites'),
+  adminCreateInvite: (body?: { note?: string; max_uses?: number; expires_days?: number; code?: string }) =>
+    request<{ ok: true; invite: Invite }>('/admin/invites/create', {
+      method: 'POST',
+      json: body || {},
+    }),
+  adminRevokeInvite: (invite_id: number) =>
+    request<{ ok: true; invite: Invite }>('/admin/invites/revoke', {
+      method: 'POST',
+      json: { invite_id },
     }),
   adminPayments: () =>
     request<{ ok: true; payments: Array<Record<string, unknown>> }>('/admin/payments'),

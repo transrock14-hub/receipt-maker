@@ -22,6 +22,8 @@ return [
   'cors_origin' => 'http://localhost:5173',
   'session_days' => 30,
   'trial_days' => 3,
+  // Registration requires an invite code from Admin (recommended for private platforms).
+  'invite_only' => true,
 
   // One-time installer lock. Required when crypto_provider is not "demo".
   // Visit /api/install.php?key=YOUR_SECRET once, then leave install.php or rotate the key.

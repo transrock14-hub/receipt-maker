@@ -281,6 +281,49 @@ function ensure_activity_schema(): void {
   );
 }
 
+/** Invite codes for invite-only registration (auto-migrates on live). */
+function ensure_invites_schema(): void {
+  $pdo = db();
+  if (db_driver() === 'sqlite') {
+    $pdo->exec(
+      "CREATE TABLE IF NOT EXISTS invites (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT NOT NULL UNIQUE,
+        created_by INTEGER NULL,
+        note TEXT NULL,
+        max_uses INTEGER NOT NULL DEFAULT 1,
+        uses INTEGER NOT NULL DEFAULT 0,
+        expires_at TEXT NULL,
+        revoked_at TEXT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        last_used_at TEXT NULL,
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+      )"
+    );
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_invites_code ON invites(code)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_invites_created ON invites(created_at)');
+    return;
+  }
+
+  $pdo->exec(
+    "CREATE TABLE IF NOT EXISTS invites (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      code VARCHAR(32) NOT NULL UNIQUE,
+      created_by INT UNSIGNED NULL,
+      note VARCHAR(255) NULL,
+      max_uses INT UNSIGNED NOT NULL DEFAULT 1,
+      uses INT UNSIGNED NOT NULL DEFAULT 0,
+      expires_at DATETIME NULL,
+      revoked_at DATETIME NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      last_used_at DATETIME NULL,
+      INDEX idx_invites_code (code),
+      INDEX idx_invites_created (created_at),
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+  );
+}
+
 function client_ip(): string {
   $candidates = [
     $_SERVER['HTTP_CF_CONNECTING_IP'] ?? '',
