@@ -324,6 +324,61 @@ function ensure_invites_schema(): void {
   );
 }
 
+/** In-app notifications (admin → users). */
+function ensure_notifications_schema(): void {
+  static $done = false;
+  if ($done) return;
+  $done = true;
+  $pdo = db();
+  if (db_driver() === 'sqlite') {
+    $pdo->exec(
+      "CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        target_user_id INTEGER NULL,
+        created_by INTEGER NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )"
+    );
+    $pdo->exec(
+      "CREATE TABLE IF NOT EXISTS notification_reads (
+        notification_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        read_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (notification_id, user_id)
+      )"
+    );
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_notifications_target ON notifications(target_user_id)');
+    return;
+  }
+  $pdo->exec(
+    "CREATE TABLE IF NOT EXISTS notifications (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      title VARCHAR(120) NOT NULL,
+      body TEXT NOT NULL,
+      target_user_id INT UNSIGNED NULL,
+      created_by INT UNSIGNED NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_notifications_created (created_at),
+      INDEX idx_notifications_target (target_user_id),
+      FOREIGN KEY (target_user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+  );
+  $pdo->exec(
+    "CREATE TABLE IF NOT EXISTS notification_reads (
+      notification_id INT UNSIGNED NOT NULL,
+      user_id INT UNSIGNED NOT NULL,
+      read_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (notification_id, user_id),
+      FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+  );
+}
+
 /** Key/value app settings (support contacts, etc.). */
 function ensure_settings_schema(): void {
   static $done = false;

@@ -1,6 +1,7 @@
 import './Toolbar.css'
 import type { ScreenshotMode } from '../catalog/deviceFrame'
 import { SupportCareMenu } from './SupportLinks'
+import { NotificationBell } from './NotificationBell'
 
 interface Props {
   hasImage: boolean
@@ -187,6 +188,7 @@ export function Toolbar(props: Props) {
                 Log out
               </button>
             )}
+            <NotificationBell className="toolbar-notif" />
             <SupportCareMenu className="toolbar-support" />
           </div>
         )}

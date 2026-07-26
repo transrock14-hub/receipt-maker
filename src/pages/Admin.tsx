@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { api, type ActivityEvent, type AuthUser, type Invite } from '../auth/api'
+import { api, type ActivityEvent, type AppNotification, type AuthUser, type Invite } from '../auth/api'
 import { useAuth } from '../auth/AuthContext'
 import { useToast } from '../ui/Toast'
 import './AccountPages.css'
@@ -36,6 +36,8 @@ function actionLabel(action: string): string {
     admin_user_update: 'Admin · update user',
     admin_invite_create: 'Admin · invite',
     admin_invite_revoke: 'Admin · revoke invite',
+    admin_support_update: 'Admin · support',
+    admin_notification_send: 'Admin · notify',
   }
   return map[action] || action.replace(/_/g, ' ')
 }
@@ -87,6 +89,12 @@ export function AdminPage({ onBack }: Props) {
   const [supportMessage, setSupportMessage] = useState('Need help? Chat with support.')
   const [supportBusy, setSupportBusy] = useState(false)
 
+  const [notifTitle, setNotifTitle] = useState('')
+  const [notifBody, setNotifBody] = useState('')
+  const [notifTarget, setNotifTarget] = useState<'all' | string>('all')
+  const [notifBusy, setNotifBusy] = useState(false)
+  const [sentNotifs, setSentNotifs] = useState<AppNotification[]>([])
+
   const loadActivity = useCallback(async (query?: string, action?: string) => {
     const res = await api.adminActivity({
       q: query || undefined,
@@ -99,12 +107,13 @@ export function AdminPage({ onBack }: Props) {
 
   const load = useCallback(async (query?: string) => {
     try {
-      const [u, p, s, inv, support] = await Promise.all([
+      const [u, p, s, inv, support, notifs] = await Promise.all([
         api.adminUsers(query),
         api.adminPayments(),
         api.adminStats(),
         api.adminInvites(),
         api.adminSupport(),
+        api.adminNotifications(),
       ])
       setUsers(u.users)
       setPayments(p.payments)
@@ -113,6 +122,7 @@ export function AdminPage({ onBack }: Props) {
       setSupportTelegram(support.raw.telegram || '')
       setSupportWhatsapp(support.raw.whatsapp || '')
       setSupportMessage(support.raw.message || 'Need help? Chat with support.')
+      setSentNotifs(notifs.notifications)
       setError(null)
       setLastRefresh(new Date())
     } catch (err) {
@@ -178,6 +188,35 @@ export function AdminPage({ onBack }: Props) {
       toast.error(err instanceof Error ? err.message : 'Support save failed')
     } finally {
       setSupportBusy(false)
+    }
+  }
+
+  const sendNotification = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!notifTitle.trim() || !notifBody.trim()) {
+      toast.error('Title and message are required')
+      return
+    }
+    setNotifBusy(true)
+    setError(null)
+    try {
+      const userId = notifTarget === 'all' ? null : Number(notifTarget)
+      await api.adminSendNotification({
+        title: notifTitle.trim(),
+        body: notifBody.trim(),
+        user_id: userId && Number.isFinite(userId) ? userId : null,
+      })
+      setNotifTitle('')
+      setNotifBody('')
+      setNotifTarget('all')
+      const list = await api.adminNotifications()
+      setSentNotifs(list.notifications)
+      toast.success(userId ? 'Notification sent to user' : 'Notification sent to all users')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Notification failed')
+      toast.error(err instanceof Error ? err.message : 'Notification failed')
+    } finally {
+      setNotifBusy(false)
     }
   }
 
@@ -297,7 +336,10 @@ export function AdminPage({ onBack }: Props) {
           </button>
         </div>
         <h1>Admin</h1>
-        <p>Invite-only signup, customer support links, create accounts, monitor activity, and track payments.</p>
+        <p>
+          Customer support links, in-app notifications, invite-only signup, accounts, activity, and
+          payments.
+        </p>
       </header>
 
       {stats && (
@@ -362,6 +404,70 @@ export function AdminPage({ onBack }: Props) {
             {supportBusy ? 'Saving…' : 'Save support links'}
           </button>
         </form>
+      </section>
+
+      <section className="account-panel">
+        <h2>Send notification</h2>
+        <p className="muted create-hint">
+          Push a message to all users or one account. It shows in the studio notification bell.
+        </p>
+        <form className="create-user-form" onSubmit={(e) => void sendNotification(e)}>
+          <label>
+            Audience
+            <select value={notifTarget} onChange={(e) => setNotifTarget(e.target.value)}>
+              <option value="all">All users</option>
+              {users.map((u) => (
+                <option key={u.id} value={String(u.id)}>
+                  @{u.username}
+                  {u.name ? ` · ${u.name}` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Title
+            <input
+              value={notifTitle}
+              onChange={(e) => setNotifTitle(e.target.value)}
+              placeholder="Plan renewal reminder"
+              maxLength={120}
+              required
+            />
+          </label>
+          <label>
+            Message
+            <textarea
+              value={notifBody}
+              onChange={(e) => setNotifBody(e.target.value)}
+              placeholder="Your Pro plan renews in 3 days. Open Billing to extend."
+              rows={3}
+              maxLength={2000}
+              required
+            />
+          </label>
+          <button type="submit" className="account-btn primary" disabled={notifBusy}>
+            {notifBusy ? 'Sending…' : 'Send notification'}
+          </button>
+        </form>
+        {sentNotifs.length > 0 && (
+          <div className="notif-admin-list">
+            <h3 className="notif-admin-heading">Recently sent</h3>
+            <ul>
+              {sentNotifs.slice(0, 8).map((n) => (
+                <li key={n.id}>
+                  <strong>{n.title}</strong>
+                  <span className="muted">
+                    {n.audience === 'all'
+                      ? 'All users'
+                      : `@${n.target_username || n.target_user_id}`}
+                    {n.created_at ? ` · ${new Date(n.created_at.includes('T') ? n.created_at : n.created_at.replace(' ', 'T') + 'Z').toLocaleString()}` : ''}
+                  </span>
+                  <p>{n.body}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </section>
 
       <section className="account-panel">

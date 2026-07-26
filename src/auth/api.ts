@@ -139,6 +139,17 @@ export type SupportRaw = {
   message: string
 }
 
+export type AppNotification = {
+  id: number
+  title: string
+  body: string
+  created_at: string | null
+  read: boolean
+  audience: 'all' | 'user'
+  target_user_id?: number | null
+  target_username?: string | null
+}
+
 export const api = {
   health: () => request<{ ok: boolean }>('/health'),
   register: (username: string, password: string, name?: string, invite?: string) =>
@@ -236,6 +247,20 @@ export const api = {
     request<{ ok: true; support: SupportInfo; raw: SupportRaw }>('/admin/support'),
   adminSaveSupport: (body: { telegram?: string; whatsapp?: string; message?: string }) =>
     request<{ ok: true; support: SupportInfo; raw: SupportRaw }>('/admin/support', {
+      method: 'POST',
+      json: body,
+    }),
+  notifications: () =>
+    request<{ ok: true; notifications: AppNotification[]; unread: number }>('/notifications'),
+  markNotificationsRead: (body?: { id?: number; ids?: number[]; all?: boolean }) =>
+    request<{ ok: true; notifications: AppNotification[]; unread: number }>('/notifications/read', {
+      method: 'POST',
+      json: body || { all: true },
+    }),
+  adminNotifications: () =>
+    request<{ ok: true; notifications: AppNotification[] }>('/admin/notifications'),
+  adminSendNotification: (body: { title: string; body: string; user_id?: number | null }) =>
+    request<{ ok: true; notification: AppNotification }>('/admin/notifications', {
       method: 'POST',
       json: body,
     }),

@@ -16,6 +16,7 @@ try {
   ensure_activity_schema();
   ensure_invites_schema();
   ensure_settings_schema();
+  ensure_notifications_schema();
   route($method, $path);
 } catch (Throwable $e) {
   respond([
@@ -56,6 +57,12 @@ function route(string $method, string $path): void {
   if ($method === 'GET' && $path === '/support') {
     handle_support_get();
   }
+  if ($method === 'GET' && $path === '/notifications') {
+    handle_notifications_list();
+  }
+  if ($method === 'POST' && $path === '/notifications/read') {
+    handle_notifications_read();
+  }
   if ($method === 'POST' && $path === '/payments/create') {
     handle_payment_create();
   }
@@ -93,6 +100,12 @@ function route(string $method, string $path): void {
   }
   if ($method === 'POST' && $path === '/admin/support') {
     handle_admin_support_save();
+  }
+  if ($method === 'GET' && $path === '/admin/notifications') {
+    handle_admin_notifications_list();
+  }
+  if ($method === 'POST' && $path === '/admin/notifications') {
+    handle_admin_notifications_send();
   }
   if ($method === 'GET' && $path === '/admin/payments') {
     handle_admin_payments();
@@ -373,6 +386,168 @@ function handle_plans(): void {
 
 function handle_support_get(): void {
   respond(['ok' => true, 'support' => public_support()]);
+}
+
+function notification_row_public(array $row): array {
+  return [
+    'id' => (int)$row['id'],
+    'title' => (string)$row['title'],
+    'body' => (string)$row['body'],
+    'created_at' => $row['created_at'] ?? null,
+    'read' => !empty($row['is_read']),
+    'audience' => empty($row['target_user_id']) ? 'all' : 'user',
+  ];
+}
+
+function handle_notifications_list(): void {
+  $user = require_user();
+  ensure_notifications_schema();
+  $uid = (int)$user['id'];
+  $stmt = db()->prepare(
+    'SELECT n.id, n.title, n.body, n.target_user_id, n.created_at,
+            CASE WHEN r.user_id IS NULL THEN 0 ELSE 1 END AS is_read
+     FROM notifications n
+     LEFT JOIN notification_reads r
+       ON r.notification_id = n.id AND r.user_id = ?
+     WHERE n.target_user_id IS NULL OR n.target_user_id = ?
+     ORDER BY n.created_at DESC, n.id DESC
+     LIMIT 40'
+  );
+  $stmt->execute([$uid, $uid]);
+  $rows = $stmt->fetchAll();
+  $items = array_map('notification_row_public', $rows);
+  $unread = 0;
+  foreach ($items as $item) {
+    if (!$item['read']) $unread++;
+  }
+  respond(['ok' => true, 'notifications' => $items, 'unread' => $unread]);
+}
+
+function handle_notifications_read(): void {
+  $user = require_user();
+  ensure_notifications_schema();
+  $body = json_input();
+  $uid = (int)$user['id'];
+  $ids = $body['ids'] ?? null;
+  $markAll = !empty($body['all']);
+
+  if ($markAll) {
+    $stmt = db()->prepare(
+      'SELECT n.id FROM notifications n
+       LEFT JOIN notification_reads r
+         ON r.notification_id = n.id AND r.user_id = ?
+       WHERE (n.target_user_id IS NULL OR n.target_user_id = ?) AND r.user_id IS NULL'
+    );
+    $stmt->execute([$uid, $uid]);
+    $ids = array_map(static fn($r) => (int)$r['id'], $stmt->fetchAll());
+  } elseif (!is_array($ids)) {
+    $single = (int)($body['id'] ?? 0);
+    $ids = $single > 0 ? [$single] : [];
+  } else {
+    $ids = array_values(array_filter(array_map('intval', $ids), static fn($id) => $id > 0));
+  }
+
+  if ($ids) {
+    $ins = db()->prepare(
+      'INSERT IGNORE INTO notification_reads (notification_id, user_id) VALUES (?, ?)'
+    );
+    if (db_driver() === 'sqlite') {
+      $ins = db()->prepare(
+        'INSERT OR IGNORE INTO notification_reads (notification_id, user_id) VALUES (?, ?)'
+      );
+    }
+    foreach ($ids as $nid) {
+      // Only mark notifications this user can see
+      $check = db()->prepare(
+        'SELECT id FROM notifications WHERE id = ? AND (target_user_id IS NULL OR target_user_id = ?) LIMIT 1'
+      );
+      $check->execute([$nid, $uid]);
+      if ($check->fetch()) {
+        $ins->execute([$nid, $uid]);
+      }
+    }
+  }
+
+  handle_notifications_list();
+}
+
+function handle_admin_notifications_list(): void {
+  require_admin();
+  ensure_notifications_schema();
+  $rows = db()->query(
+    'SELECT n.id, n.title, n.body, n.target_user_id, n.created_at, n.created_by,
+            u.username AS target_username
+     FROM notifications n
+     LEFT JOIN users u ON u.id = n.target_user_id
+     ORDER BY n.created_at DESC, n.id DESC
+     LIMIT 50'
+  )->fetchAll();
+  $items = [];
+  foreach ($rows as $row) {
+    $items[] = [
+      'id' => (int)$row['id'],
+      'title' => (string)$row['title'],
+      'body' => (string)$row['body'],
+      'created_at' => $row['created_at'] ?? null,
+      'audience' => empty($row['target_user_id']) ? 'all' : 'user',
+      'target_user_id' => $row['target_user_id'] !== null ? (int)$row['target_user_id'] : null,
+      'target_username' => $row['target_username'] ?? null,
+    ];
+  }
+  respond(['ok' => true, 'notifications' => $items]);
+}
+
+function handle_admin_notifications_send(): void {
+  $admin = require_admin();
+  ensure_notifications_schema();
+  $body = json_input();
+  $title = trim((string)($body['title'] ?? ''));
+  $message = trim((string)($body['body'] ?? $body['message'] ?? ''));
+  $targetId = $body['user_id'] ?? $body['target_user_id'] ?? null;
+  if ($targetId === '' || $targetId === 'all' || $targetId === 0 || $targetId === '0') {
+    $targetId = null;
+  } elseif ($targetId !== null) {
+    $targetId = (int)$targetId;
+  }
+
+  if ($title === '') fail('Title is required');
+  if ($message === '') fail('Message is required');
+  if (strlen($title) > 120) $title = substr($title, 0, 120);
+  if (strlen($message) > 2000) $message = substr($message, 0, 2000);
+
+  if ($targetId !== null) {
+    $stmt = db()->prepare('SELECT id, username FROM users WHERE id = ? LIMIT 1');
+    $stmt->execute([$targetId]);
+    $target = $stmt->fetch();
+    if (!$target) fail('User not found', 404);
+  }
+
+  db()->prepare(
+    'INSERT INTO notifications (title, body, target_user_id, created_by) VALUES (?, ?, ?, ?)'
+  )->execute([$title, $message, $targetId, (int)$admin['id']]);
+
+  $id = (int)db()->lastInsertId();
+  log_activity('admin_notification_send', $admin, $title, [
+    'notification_id' => $id,
+    'audience' => $targetId === null ? 'all' : 'user',
+    'target_user_id' => $targetId,
+  ]);
+  log_admin((int)$admin['id'], 'notification_send', $targetId, [
+    'notification_id' => $id,
+    'title' => $title,
+  ]);
+
+  respond([
+    'ok' => true,
+    'notification' => [
+      'id' => $id,
+      'title' => $title,
+      'body' => $message,
+      'audience' => $targetId === null ? 'all' : 'user',
+      'target_user_id' => $targetId,
+      'target_username' => $target['username'] ?? null,
+    ],
+  ]);
 }
 
 function handle_admin_support_get(): void {
