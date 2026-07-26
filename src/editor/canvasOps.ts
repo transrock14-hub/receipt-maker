@@ -2,7 +2,6 @@ import {
   Canvas,
   FabricImage,
   IText,
-  filters,
   type FabricObject,
 } from 'fabric'
 import type {
@@ -370,40 +369,6 @@ export async function loadCanvasJson(
   canvas.setDimensions({ width, height })
   await canvas.loadFromJSON(json)
   canvas.renderOnAddRemove = true
-  canvas.requestRenderAll()
-}
-
-export function rotateBackground(canvas: Canvas, degrees: number) {
-  const bg = canvas.getObjects().find((o) => o.get('isBackground')) as FabricImage | undefined
-  if (!bg) {
-    canvas.getObjects().forEach((o) => {
-      o.rotate((o.angle || 0) + degrees)
-      o.setCoords()
-    })
-    canvas.requestRenderAll()
-    return
-  }
-  bg.rotate((bg.angle || 0) + degrees)
-  bg.setCoords()
-  canvas.requestRenderAll()
-}
-
-export function applyImageAdjustments(
-  canvas: Canvas,
-  brightness: number,
-  contrast: number,
-) {
-  const bg = canvas.getObjects().find((o) => o.get('isBackground')) as FabricImage | undefined
-  if (!bg) return
-
-  bg.filters = []
-  if (brightness !== 0) {
-    bg.filters.push(new filters.Brightness({ brightness }))
-  }
-  if (contrast !== 0) {
-    bg.filters.push(new filters.Contrast({ contrast }))
-  }
-  bg.applyFilters()
   canvas.requestRenderAll()
 }
 

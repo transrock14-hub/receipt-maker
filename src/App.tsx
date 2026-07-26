@@ -10,7 +10,6 @@ import { ScreenshotStage } from './components/ScreenshotStage'
 import { analyzeReceiptImage } from './analysis/ocr'
 import {
   addBlankText,
-  applyImageAdjustments,
   applyOcrLayers,
   canvasToJson,
   cropCanvasToSelection,
@@ -18,7 +17,6 @@ import {
   getSelectedProps,
   loadCanvasJson,
   loadImageAsBackground,
-  rotateBackground,
   updateSelectedText,
 } from './editor/canvasOps'
 import { EditorHistory } from './editor/history'
@@ -129,8 +127,6 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
   const [screenshotMode, setScreenshotMode] = useState<ScreenshotMode>('screen')
   const [exportGrain, setExportGrain] = useState(false)
   const [hideOriginal, setHideOriginal] = useState(true)
-  const [brightness, setBrightness] = useState(0)
-  const [contrast, setContrast] = useState(0)
   const [selectionTick, setSelectionTick] = useState(0)
   const [zoom, setZoom] = useState(1)
   const [canUndo, setCanUndo] = useState(false)
@@ -479,8 +475,6 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
     setComposeLive(false)
     imageDataUrlRef.current = dataUrl
     lastAnalysisRef.current = null
-    setBrightness(0)
-    setContrast(0)
     setPalette([])
     setZoom(0.72)
     const dims = await loadImageAsBackground(canvas, dataUrl)
@@ -1092,18 +1086,6 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
     return () => window.clearTimeout(t)
   }, [analyzing, hasImage, persistCurrentProject])
 
-  const handleBrightness = useCallback((v: number) => {
-    setBrightness(v)
-    const canvas = canvasRef.current
-    if (canvas) applyImageAdjustments(canvas, v, contrast)
-  }, [contrast])
-
-  const handleContrast = useCallback((v: number) => {
-    setContrast(v)
-    const canvas = canvasRef.current
-    if (canvas) applyImageAdjustments(canvas, brightness, v)
-  }, [brightness])
-
   const handleCrop = useCallback(async () => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -1320,8 +1302,6 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
         zoom={zoom}
         canUndo={canUndo}
         canRedo={canRedo}
-        brightness={brightness}
-        contrast={contrast}
         screenshotMode={screenshotMode}
         deviceLabel={getDevice(deviceId).name}
         canDownload={canDownload}
@@ -1341,17 +1321,9 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
         onDuplicate={() => void handleDuplicate()}
         onUndo={() => void handleUndo()}
         onRedo={() => void handleRedo()}
-        onRotate={(deg) => {
-          const canvas = canvasRef.current
-          if (!canvas) return
-          rotateBackground(canvas, deg)
-          pushHistory()
-        }}
         onHideOriginalChange={(v) => {
           void handleHideOriginalChange(v)
         }}
-        onBrightnessChange={handleBrightness}
-        onContrastChange={handleContrast}
         onCrop={handleCrop}
         onZoomIn={() => setZoom((z) => Math.min(2.5, Math.round((z + 0.1) * 10) / 10))}
         onZoomOut={() => setZoom((z) => Math.max(0.4, Math.round((z - 0.1) * 10) / 10))}

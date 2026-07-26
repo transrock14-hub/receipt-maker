@@ -9,8 +9,6 @@ interface Props {
   zoom: number
   canUndo: boolean
   canRedo: boolean
-  brightness: number
-  contrast: number
   screenshotMode: ScreenshotMode
   deviceLabel?: string
   canDownload?: boolean
@@ -30,10 +28,7 @@ interface Props {
   onDuplicate: () => void
   onUndo: () => void
   onRedo: () => void
-  onRotate: (deg: number) => void
   onHideOriginalChange: (v: boolean) => void
-  onBrightnessChange: (v: number) => void
-  onContrastChange: (v: number) => void
   onCrop: () => void
   onZoomIn: () => void
   onZoomOut: () => void
@@ -206,34 +201,9 @@ export function Toolbar(props: Props) {
             />
             Hide original text
           </label>
-          <button type="button" className="btn btn-ghost" disabled={!props.hasImage} onClick={() => props.onRotate(90)}>
-            Rotate
-          </button>
           <button type="button" className="btn btn-ghost" disabled={!props.hasImage} onClick={props.onCrop}>
             Crop
           </button>
-          <label>
-            Brightness
-            <input
-              type="range"
-              min={-0.4}
-              max={0.4}
-              step={0.02}
-              value={props.brightness}
-              onChange={(e) => props.onBrightnessChange(Number(e.target.value))}
-            />
-          </label>
-          <label>
-            Contrast
-            <input
-              type="range"
-              min={-0.4}
-              max={0.4}
-              step={0.02}
-              value={props.contrast}
-              onChange={(e) => props.onContrastChange(Number(e.target.value))}
-            />
-          </label>
         </div>
       )}
     </header>
