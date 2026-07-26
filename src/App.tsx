@@ -1403,10 +1403,21 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
           className="props-drawer-toggle"
           onClick={() => setPropsOpen((o) => !o)}
         >
-          {propsOpen ? 'Hide properties' : 'Properties'}
+          {propsOpen ? 'Hide fields' : 'Fields'}
         </button>
         <div className={`props-shell${propsOpen ? ' open' : ''}`}>
-          <PropertyPanel selected={selected} palette={palette} onChange={handlePropChange} />
+          <PropertyPanel
+            selected={selected}
+            palette={palette}
+            generateValues={generateValues}
+            onGenerateValuesChange={(v) => {
+              setComposeLive(true)
+              setGenerateValues(v)
+            }}
+            fieldKeys={generateFieldKeys}
+            composing={composing}
+            onChange={handlePropChange}
+          />
         </div>
       </div>
     </div>

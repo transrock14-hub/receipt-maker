@@ -18,7 +18,11 @@
 }
 
 .workspace .props-panel {
-  width: 220px;
+  width: 300px;
+}
+
+.workspace .props-panel-wide {
+  width: 300px;
 }
 
 .props-drawer-toggle {

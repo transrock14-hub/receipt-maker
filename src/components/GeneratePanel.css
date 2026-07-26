@@ -6,6 +6,11 @@
   margin-bottom: 0.4rem;
 }
 
+.generate-panel-setup .generate-hint {
+  margin-bottom: 0.65rem;
+}
+
+.generate-fields .generate-heading h2,
 .generate-panel h2 {
   margin: 0;
   font-size: 0.95rem;

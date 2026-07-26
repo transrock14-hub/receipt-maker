@@ -1,10 +1,54 @@
 .props-panel {
-  width: 280px;
+  width: 300px;
   flex-shrink: 0;
   border-left: 1px solid #e6e4ef;
   background: #ffffff;
-  padding: 1rem 0.9rem 1.5rem;
+  padding: 0.75rem 0.85rem 1.5rem;
   overflow-y: auto;
+}
+
+.props-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+  padding: 0.25rem;
+  border-radius: 10px;
+  background: var(--surface-2, #f4f2fa);
+  border: 1px solid var(--line, #e6e4ef);
+}
+
+.props-tabs button {
+  appearance: none;
+  border: none;
+  border-radius: 8px;
+  padding: 0.45rem 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+}
+
+.props-tabs button.active {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.props-tab-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 0.3rem;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+}
+
+.props-text-body h2 {
+  margin: 0 0 0.75rem;
 }
 
 .props-panel h2 {

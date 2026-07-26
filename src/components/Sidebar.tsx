@@ -101,7 +101,7 @@ export function Sidebar(props: Props) {
     currentProjectId,
     deviceId,
     institutionId,
-    fieldKeys,
+    fieldKeys: _fieldKeys,
     onUpload,
     onOpenProject,
     onDeleteProject,
@@ -400,7 +400,6 @@ export function Sidebar(props: Props) {
               screenTheme={screenTheme}
               onScreenThemeChange={onScreenThemeChange}
               onRefresh={onRefreshPreview}
-              fieldKeys={fieldKeys}
               live
               composing={composing}
             />
