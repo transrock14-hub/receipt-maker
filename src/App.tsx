@@ -148,6 +148,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
   const [propsOpen, setPropsOpen] = useState(false)
   const skipNextAutosaveRef = useRef(false)
   const composeGenRef = useRef(0)
+  const composeChainRef = useRef(Promise.resolve())
   const composeLatestRef = useRef({
     deviceId,
     institutionId,
@@ -259,76 +260,103 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
 
   const applyComposeToCanvas = useCallback(
     async (opts?: { silent?: boolean }) => {
-      const canvas = canvasRef.current
-      if (!canvas) return null
       const gen = ++composeGenRef.current
-      const {
-        deviceId: composeDevice,
-        institutionId: composeInstitution,
-        generateValues: values,
-        screenTheme: theme,
-        studies: studyList,
-        templates: tpls,
-        showFrame: framed,
-      } = composeLatestRef.current
 
-      const insights = mergeStudyInsights(studyList)
-      let composed = composeScreenshot(composeDevice, composeInstitution, values, theme)
-      if (insights) {
-        composed = {
-          ...composed,
-          canvasJson: applyStudyPaletteToCanvasJson(composed.canvasJson, insights),
-          palette: insights.palette.length ? insights.palette : composed.palette,
-        }
-      }
-      const tplId = `catalog-${composeInstitution}-${composeDevice}`
-      const tpl =
-        tpls.find((t) => t.id === tplId) ||
-        ({
-          id: tplId,
-          name: composed.name,
-          createdAt: new Date().toISOString(),
-          width: composed.width,
-          height: composed.height,
-          canvasJson: composed.canvasJson,
-          fields: composed.fields,
-          palette: composed.palette,
-          isStarter: true,
-          category: getInstitution(composeInstitution).category,
+      const run = async () => {
+        // Superseded while waiting in the queue
+        if (gen !== composeGenRef.current) return null
+
+        const canvas = canvasRef.current
+        if (!canvas) return null
+
+        // Always compose from the latest selection when our turn runs
+        const {
           deviceId: composeDevice,
           institutionId: composeInstitution,
-        } satisfies ReceiptTemplate)
+          generateValues: values,
+          screenTheme: theme,
+          studies: studyList,
+          templates: tpls,
+          showFrame: framed,
+        } = composeLatestRef.current
 
-      // A newer compose started — abandon this one
-      if (gen !== composeGenRef.current) return null
+        const insights = mergeStudyInsights(studyList)
+        let composed = composeScreenshot(composeDevice, composeInstitution, values, theme)
+        if (insights) {
+          composed = {
+            ...composed,
+            canvasJson: applyStudyPaletteToCanvasJson(composed.canvasJson, insights),
+            palette: insights.palette.length ? insights.palette : composed.palette,
+          }
+        }
+        const tplId = `catalog-${composeInstitution}-${composeDevice}`
+        const tpl =
+          tpls.find((t) => t.id === tplId) ||
+          ({
+            id: tplId,
+            name: composed.name,
+            createdAt: new Date().toISOString(),
+            width: composed.width,
+            height: composed.height,
+            canvasJson: composed.canvasJson,
+            fields: composed.fields,
+            palette: composed.palette,
+            isStarter: true,
+            category: getInstitution(composeInstitution).category,
+            deviceId: composeDevice,
+            institutionId: composeInstitution,
+          } satisfies ReceiptTemplate)
 
-      setActiveTemplate(tpl)
-      skipNextAutosaveRef.current = true
-      await loadCanvasJson(canvas, composed.canvasJson, composed.width, composed.height)
-
-      if (gen !== composeGenRef.current) return null
-
-      imageDataUrlRef.current = null
-      setHasImage(true)
-      setPalette(composed.palette)
-      setZoom(composeDevice.startsWith('desktop') ? 0.45 : 0.85)
-      lastAnalysisRef.current = null
-      historyRef.current.save()
-      syncHistoryFlags()
-      refreshLayers()
-      refreshSelection()
-      if (framed) {
-        const url = await previewFramedScreenshot(canvas, composeDevice, 1.1)
         if (gen !== composeGenRef.current) return null
-        setFramedPreviewUrl(url)
-      } else {
-        setFramedPreviewUrl(null)
+
+        setActiveTemplate(tpl)
+        skipNextAutosaveRef.current = true
+        await loadCanvasJson(canvas, composed.canvasJson, composed.width, composed.height)
+
+        // Another compose won — do not touch status/frame; queue will apply latest next
+        if (gen !== composeGenRef.current) return null
+
+        // Selection changed during load — re-queue with latest instead of publishing mismatch
+        const latest = composeLatestRef.current
+        if (
+          latest.deviceId !== composeDevice ||
+          latest.institutionId !== composeInstitution ||
+          latest.screenTheme !== theme
+        ) {
+          void applyComposeToCanvas(opts)
+          return null
+        }
+
+        imageDataUrlRef.current = null
+        setHasImage(true)
+        setPalette(composed.palette)
+        setZoom(composeDevice.startsWith('desktop') ? 0.45 : 0.85)
+        lastAnalysisRef.current = null
+        historyRef.current.save()
+        syncHistoryFlags()
+        refreshLayers()
+        refreshSelection()
+        if (framed) {
+          const url = await previewFramedScreenshot(canvas, composeDevice, 1.1)
+          if (gen !== composeGenRef.current) return null
+          if (composeLatestRef.current.deviceId !== composeDevice) return null
+          setFramedPreviewUrl(url)
+        } else {
+          setFramedPreviewUrl(null)
+        }
+        if (!opts?.silent) {
+          const studyNote = insights ? ` · study ×${insights.count}` : ''
+          setStatus(`Live · ${composed.name}${studyNote}`)
+        }
+        return composed
       }
-      if (!opts?.silent) {
-        const studyNote = insights ? ` · study ×${insights.count}` : ''
-        setStatus(`Live · ${composed.name}${studyNote}`)
-      }
-      return composed
+
+      const next = composeChainRef.current.then(run, run)
+      composeChainRef.current = next.then(
+        () => undefined,
+        () => undefined,
+      )
+      return next
     },
     [syncHistoryFlags, refreshLayers, refreshSelection],
   )
