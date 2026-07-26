@@ -147,6 +147,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
   const [framedPreviewUrl, setFramedPreviewUrl] = useState<string | null>(null)
   const [propsOpen, setPropsOpen] = useState(false)
   const skipNextAutosaveRef = useRef(false)
+  const composeGenRef = useRef(0)
 
   hideOriginalRef.current = hideOriginal
 
@@ -252,8 +253,11 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
     async (opts?: { silent?: boolean }) => {
       const canvas = canvasRef.current
       if (!canvas) return null
+      const gen = ++composeGenRef.current
+      const composeDevice = deviceId
+      const composeInstitution = institutionId
       const insights = mergeStudyInsights(studies)
-      let composed = composeScreenshot(deviceId, institutionId, generateValues, screenTheme)
+      let composed = composeScreenshot(composeDevice, composeInstitution, generateValues, screenTheme)
       if (insights) {
         composed = {
           ...composed,
@@ -261,7 +265,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
           palette: insights.palette.length ? insights.palette : composed.palette,
         }
       }
-      const tplId = `catalog-${institutionId}-${deviceId}`
+      const tplId = `catalog-${composeInstitution}-${composeDevice}`
       const tpl =
         templates.find((t) => t.id === tplId) ||
         ({
@@ -274,25 +278,32 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
           fields: composed.fields,
           palette: composed.palette,
           isStarter: true,
-          category: getInstitution(institutionId).category,
-          deviceId,
-          institutionId,
+          category: getInstitution(composeInstitution).category,
+          deviceId: composeDevice,
+          institutionId: composeInstitution,
         } satisfies ReceiptTemplate)
+
+      // Drop stale results if the user changed device/wallet while we were composing
+      if (gen !== composeGenRef.current) return null
 
       setActiveTemplate(tpl)
       skipNextAutosaveRef.current = true
       await loadCanvasJson(canvas, composed.canvasJson, composed.width, composed.height)
+
+      if (gen !== composeGenRef.current) return null
+
       imageDataUrlRef.current = null
       setHasImage(true)
       setPalette(composed.palette)
-      setZoom(deviceId.startsWith('desktop') ? 0.45 : 0.85)
+      setZoom(composeDevice.startsWith('desktop') ? 0.45 : 0.85)
       lastAnalysisRef.current = null
       historyRef.current.save()
       syncHistoryFlags()
       refreshLayers()
       refreshSelection()
       if (showFrame) {
-        const url = await previewFramedScreenshot(canvas, deviceId, 1.1)
+        const url = await previewFramedScreenshot(canvas, composeDevice, 1.1)
+        if (gen !== composeGenRef.current) return null
         setFramedPreviewUrl(url)
       }
       if (!opts?.silent) {
@@ -777,7 +788,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
           ;(nextVals as Record<string, string>)[f.fieldKey] = f.defaultValue
         }
       }
-      if (t.deviceId) nextVals.phoneType = t.deviceId
+      if (t.deviceId) nextVals.phoneType = getDevice(t.deviceId).name
       setGenerateValues(nextVals)
 
       pushHistory()
@@ -846,10 +857,18 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
   useEffect(() => {
     if (!bootReady || !composeLive) return
     setComposing(true)
+    let cancelled = false
     const t = window.setTimeout(() => {
-      void applyComposeToCanvas({ silent: false }).finally(() => setComposing(false))
+      void applyComposeToCanvas({ silent: false }).finally(() => {
+        if (!cancelled) setComposing(false)
+      })
     }, 280)
-    return () => window.clearTimeout(t)
+    return () => {
+      cancelled = true
+      window.clearTimeout(t)
+      // Invalidate in-flight compose so it cannot overwrite a newer selection
+      composeGenRef.current += 1
+    }
   }, [bootReady, composeLive, applyComposeToCanvas])
 
   useEffect(() => {
@@ -962,7 +981,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
     (id: DeviceId) => {
       setComposeLive(true)
       setDeviceId(id)
-      setGenerateValues((v) => ({ ...v, phoneType: id }))
+      setGenerateValues((v) => ({ ...v, phoneType: getDevice(id).name }))
     },
     [],
   )
