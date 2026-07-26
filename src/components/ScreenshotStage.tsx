@@ -50,7 +50,7 @@ export function ScreenshotStage({
                 <button
                   type="button"
                   className="screenshot-copy-btn"
-                  disabled={copyDisabled}
+                  disabled={copyDisabled || canCopy === false}
                   onClick={onCopyScreenshot}
                   title={
                     canCopy === false

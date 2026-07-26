@@ -10,6 +10,12 @@ import {
 } from '../src/catalog/screenTheme'
 import { FIELD_DEFS } from '../src/types/receipt'
 import { composeScreenshot } from '../src/catalog/compose'
+import {
+  applyCoinQuote,
+  formatCryptoAmount,
+  parseCryptoAmount,
+  resolveNetwork,
+} from '../src/catalog/coins'
 
 let passed = 0
 let failed = 0
@@ -97,6 +103,34 @@ check('incoming deposit screens use positive amounts', () => {
     }
     if (!c.name.toLowerCase().match(/deposit|received|receive/)) {
       throw new Error(`${id} name should look incoming: ${c.name}`)
+    }
+  }
+})
+
+check('resolveNetwork keeps Base / Smart Chain labels', () => {
+  if (resolveNetwork('USDT', 'Base').id !== 'base') throw new Error('Base → base')
+  if (resolveNetwork('USDT', 'Smart Chain').id !== 'bep20') throw new Error('Smart Chain → bep20')
+  if (resolveNetwork('USDT', 'BNB Smart Chain').id !== 'bep20') throw new Error('BNB Smart Chain → bep20')
+  const quoted = applyCoinQuote({
+    symbol: 'USDT',
+    networkLabel: 'Base',
+    qty: 45,
+    sign: 'none',
+    usdPerCoin: 1,
+    updateFee: false,
+    approxFiat: false,
+  })
+  if (quoted.network !== 'Base') throw new Error(`kept Base label, got ${quoted.network}`)
+  if (quoted.amountCrypto !== '45 USDT') throw new Error(`unsigned sent amount, got ${quoted.amountCrypto}`)
+  if (parseCryptoAmount('45 USDT').sign !== 'none') throw new Error('unsigned parse')
+  if (formatCryptoAmount(45, 'USDT', 'plus') !== '+45 USDT') throw new Error('plus format')
+})
+
+check('trust screens expose CTA field', () => {
+  for (const id of ['trust-send', 'trust-receive']) {
+    const c = composeScreenshot('iphone-15', id, {}, 'light')
+    if (!c.fields.some((f) => f.fieldKey === 'other')) {
+      throw new Error(`${id} missing other/CTA field`)
     }
   }
 })

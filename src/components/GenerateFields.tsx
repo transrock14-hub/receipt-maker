@@ -6,6 +6,8 @@ import {
   applyCoinQuote,
   getCoin,
   parseCryptoAmount,
+  resolveNetwork,
+  type AmountSign,
 } from '../catalog/coins'
 import { fetchRates, getCachedRates, usdRateFor } from '../catalog/rates'
 import './GeneratePanel.css'
@@ -36,6 +38,13 @@ export function GenerateFields({ values, onChange, fieldKeys, composing }: Props
   const [ratesSource, setRatesSource] = useState('…')
   const [autoFiat, setAutoFiat] = useState(true)
 
+  const allowed = fieldKeys?.length ? new Set(fieldKeys) : null
+  const hasPrice = !allowed || allowed.has('price')
+  const hasFee = !allowed || allowed.has('fee')
+  const hasFiat = !allowed || allowed.has('amountFiat')
+  const useApproxFiat = /≈/.test(values.amountFiat || '')
+  const priceLabel = /deposit/i.test(values.title || '') ? 'Deposit amount' : 'Withdraw amount'
+
   useEffect(() => {
     let alive = true
     const load = () => {
@@ -53,64 +62,87 @@ export function GenerateFields({ values, onChange, fieldKeys, composing }: Props
     }
   }, [])
 
-  const coin = getCoin(values.coin || 'USDT')
-  const networkId = useMemo(() => {
-    const match = coin.networks.find((n) => n.label === values.network)
-    return match?.id || coin.networks[0]?.id
-  }, [coin, values.network])
+  const coin = getCoin(values.coin || detectCoinFallback(values.amountCrypto))
+  const resolvedNet = useMemo(
+    () => resolveNetwork(coin.symbol, values.network),
+    [coin.symbol, values.network],
+  )
+  const networkId = resolvedNet.id
 
   const unitUsd = usdRateFor(coin.symbol)
 
   const set = (key: keyof GenerateValues, value: string) => {
-    // Patch only — parent merges so rapid edits never drop `charging` / other keys
     onChange({ [key]: value })
   }
 
-  const applyQuote = (symbol: string, netId: string, qty: number, negative: boolean) => {
+  const applyQuote = (symbol: string, netId: string, qty: number, sign: AmountSign) => {
     const rate = usdRateFor(symbol, getCachedRates().rates)
     const quoted = applyCoinQuote({
       symbol,
       networkId: netId,
+      networkLabel: values.network,
       qty,
-      negative,
+      sign,
       usdPerCoin: rate,
+      updateFee: hasFee,
+      approxFiat: useApproxFiat || hasPrice,
     })
-    onChange({
+    const patch: Partial<GenerateValues> = {
       coin: quoted.coin,
       network: quoted.network,
       amountCrypto: quoted.amountCrypto,
-      amountFiat: autoFiat ? quoted.amountFiat : values.amountFiat,
-      price: autoFiat ? quoted.price : values.price,
-      fee: quoted.fee,
-    })
+    }
+    if (autoFiat && hasFiat) patch.amountFiat = quoted.amountFiat
+    if (autoFiat && hasPrice) patch.price = quoted.price
+    if (hasFee && quoted.fee) {
+      const feeLooksCoinUnit =
+        /^\d/.test(String(values.fee || '')) && !/\$/.test(values.fee || '')
+      if (feeLooksCoinUnit || hasPrice) patch.fee = quoted.fee
+    }
+    onChange(patch)
   }
 
   const onCoinChange = (symbol: string) => {
     const next = getCoin(symbol)
     const parsed = parseCryptoAmount(values.amountCrypto)
     const qty = parsed.qty > 0 ? parsed.qty : symbol === 'USDT' || symbol === 'USDC' ? 45 : 0.01
-    // Keep outgoing (-) vs incoming (+) based on current amount sign
-    applyQuote(next.symbol, next.networks[0].id, qty, parsed.negative)
+    const net = resolveNetwork(next.symbol, values.network)
+    applyQuote(next.symbol, net.id, qty, parsed.sign)
   }
 
   const onNetworkChange = (netId: string) => {
     const parsed = parseCryptoAmount(values.amountCrypto)
     const qty = parsed.qty > 0 ? parsed.qty : 45
-    applyQuote(coin.symbol, netId, qty, parsed.negative)
+    const net = coin.networks.find((n) => n.id === netId) || coin.networks[0]
+    const rate = usdRateFor(coin.symbol, getCachedRates().rates)
+    const quoted = applyCoinQuote({
+      symbol: coin.symbol,
+      networkId: net.id,
+      qty,
+      sign: parsed.sign,
+      usdPerCoin: rate,
+      updateFee: hasFee,
+      approxFiat: useApproxFiat || hasPrice,
+    })
+    const patch: Partial<GenerateValues> = {
+      coin: quoted.coin,
+      network: net.label,
+      amountCrypto: quoted.amountCrypto,
+    }
+    if (autoFiat && hasFiat) patch.amountFiat = quoted.amountFiat
+    if (autoFiat && hasPrice) patch.price = quoted.price
+    if (hasFee && (hasPrice || !/\$/.test(values.fee || ''))) patch.fee = quoted.fee
+    onChange(patch)
   }
 
   const onAmountBlur = () => {
     if (!autoFiat) return
     const parsed = parseCryptoAmount(values.amountCrypto)
     if (parsed.qty <= 0) return
-    applyQuote(coin.symbol, networkId, parsed.qty, parsed.negative)
+    applyQuote(coin.symbol, networkId, parsed.qty, parsed.sign)
   }
 
-  const allowed = fieldKeys?.length ? new Set(fieldKeys) : null
-  const chargingOn =
-    values.charging === '1' ||
-    values.charging === 'true' ||
-    /charg/i.test(values.battery || '')
+  const chargingOn = values.charging === '1' || values.charging === 'true'
 
   const batteryPct = (() => {
     const n = Number.parseInt(String(values.battery || '87').replace(/%/g, ''), 10)
@@ -170,7 +202,9 @@ export function GenerateFields({ values, onChange, fieldKeys, composing }: Props
                 </label>
                 <p className="device-meta">
                   Live · 1 {coin.symbol} ≈ $
-                  {unitUsd.toLocaleString('en-US', { maximumFractionDigits: unitUsd >= 1 ? 2 : 6 })}
+                  {unitUsd.toLocaleString('en-US', {
+                    maximumFractionDigits: unitUsd >= 1 ? 2 : 6,
+                  })}
                 </p>
                 <label className="generate-field">
                   <span>Crypto amount</span>
@@ -184,43 +218,51 @@ export function GenerateFields({ values, onChange, fieldKeys, composing }: Props
                     onBlur={onAmountBlur}
                   />
                 </label>
-                <label className="side-check">
-                  <input
-                    type="checkbox"
-                    checked={autoFiat}
-                    onChange={(e) => setAutoFiat(e.target.checked)}
-                  />
-                  Auto fiat from live rate
-                </label>
-                <label className="generate-field">
-                  <span>Fiat amount</span>
-                  <input
-                    type="text"
-                    className="mono-input"
-                    value={values.amountFiat ?? ''}
-                    onChange={(e) => set('amountFiat', e.target.value)}
-                    disabled={autoFiat}
-                  />
-                </label>
-                <label className="generate-field">
-                  <span>Withdraw amount</span>
-                  <input
-                    type="text"
-                    className="mono-input"
-                    value={values.price ?? ''}
-                    onChange={(e) => set('price', e.target.value)}
-                    disabled={autoFiat}
-                  />
-                </label>
-                <label className="generate-field">
-                  <span>Network fee</span>
-                  <input
-                    type="text"
-                    className="mono-input"
-                    value={values.fee ?? ''}
-                    onChange={(e) => set('fee', e.target.value)}
-                  />
-                </label>
+                {hasFiat ? (
+                  <label className="side-check">
+                    <input
+                      type="checkbox"
+                      checked={autoFiat}
+                      onChange={(e) => setAutoFiat(e.target.checked)}
+                    />
+                    Auto fiat from live rate
+                  </label>
+                ) : null}
+                {hasFiat ? (
+                  <label className="generate-field">
+                    <span>Fiat amount</span>
+                    <input
+                      type="text"
+                      className="mono-input"
+                      value={values.amountFiat ?? ''}
+                      onChange={(e) => set('amountFiat', e.target.value)}
+                      disabled={autoFiat}
+                    />
+                  </label>
+                ) : null}
+                {hasPrice ? (
+                  <label className="generate-field">
+                    <span>{priceLabel}</span>
+                    <input
+                      type="text"
+                      className="mono-input"
+                      value={values.price ?? ''}
+                      onChange={(e) => set('price', e.target.value)}
+                      disabled={autoFiat}
+                    />
+                  </label>
+                ) : null}
+                {hasFee ? (
+                  <label className="generate-field">
+                    <span>Network fee</span>
+                    <input
+                      type="text"
+                      className="mono-input"
+                      value={values.fee ?? ''}
+                      onChange={(e) => set('fee', e.target.value)}
+                    />
+                  </label>
+                ) : null}
               </>
             ) : null}
 
@@ -320,4 +362,9 @@ export function GenerateFields({ values, onChange, fieldKeys, composing }: Props
       })}
     </div>
   )
+}
+
+function detectCoinFallback(amountCrypto: string): string {
+  const m = String(amountCrypto || '').toUpperCase().match(/\b([A-Z]{2,10})\b/)
+  return m?.[1] || 'USDT'
 }

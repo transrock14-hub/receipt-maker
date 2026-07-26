@@ -36,6 +36,7 @@ function buildCoinbaseKind(ctx: ScreenBuildContext, kind: 'sent' | 'received'): 
   const defaults = incoming
     ? {
         title: 'Received',
+        coin: 'USDT',
         amountCrypto: '+45 USDT',
         amountFiat: '$45.00',
         status: 'Completed',
@@ -49,6 +50,7 @@ function buildCoinbaseKind(ctx: ScreenBuildContext, kind: 'sent' | 'received'): 
       }
     : {
         title: 'Sent',
+        coin: 'USDT',
         amountCrypto: '45 USDT',
         amountFiat: '$45.00',
         status: 'Completed',
@@ -196,6 +198,7 @@ function buildTrustKind(ctx: ScreenBuildContext, kind: 'send' | 'receive'): Scre
   const defaults = incoming
     ? {
         title: 'Receive',
+        coin: 'USDT',
         amountCrypto: '+45 USDT',
         amountFiat: '$45.00',
         status: 'Success',
@@ -209,6 +212,7 @@ function buildTrustKind(ctx: ScreenBuildContext, kind: 'send' | 'receive'): Scre
       }
     : {
         title: 'Send',
+        coin: 'USDT',
         amountCrypto: '-45 USDT',
         amountFiat: '$45.00',
         status: 'Success',
@@ -241,6 +245,7 @@ function buildTrustKind(ctx: ScreenBuildContext, kind: 'send' | 'receive'): Scre
       field('networkName', 'network', 'Network', defaults.network),
       field('fee', 'fee', 'Fee', defaults.fee),
       field('date', 'date', 'Date', defaults.date),
+      field('cta', 'other', 'CTA', defaults.other),
       field('time', 'time', 'Time', defaults.time),
       field('battery', 'battery', 'Battery %', defaults.battery),
     ],
@@ -344,6 +349,7 @@ function buildMetaMaskKind(ctx: ScreenBuildContext, kind: 'sent' | 'received'): 
   const defaults = incoming
     ? {
         title: 'Received',
+        coin: 'USDT',
         amountCrypto: '+45 USDT',
         amountFiat: '$45.00',
         status: 'Confirmed',
@@ -357,6 +363,7 @@ function buildMetaMaskKind(ctx: ScreenBuildContext, kind: 'sent' | 'received'): 
       }
     : {
         title: 'Transaction',
+        coin: 'USDT',
         amountCrypto: '-45 USDT',
         amountFiat: '$45.00',
         status: 'Confirmed',

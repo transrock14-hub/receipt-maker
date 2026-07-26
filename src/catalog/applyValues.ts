@@ -23,13 +23,11 @@ export function applyGenerateValuesToCanvasJson(
     if (val != null && String(val).length) {
       // Battery field stores "87" or "87%" — status icons show digits only
       if (key === 'battery') {
-        const raw = String(val).replace('%', '').trim()
-        const charging =
-          values.charging === '1' ||
-          values.charging === 'true' ||
-          /charg/i.test(String(values.battery || ''))
+        const raw = String(val).replace('%', '').trim().replace(/^⚡/, '')
+        const charging = values.charging === '1' || values.charging === 'true'
         obj.text = charging ? `⚡${raw}` : raw
         if (charging) obj.fill = '#4CAF50'
+        else if (obj.fill === '#4CAF50') delete obj.fill
       } else if (key === 'other') {
         let text = String(val)
         // Fix common truncation / typo from older demos

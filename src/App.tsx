@@ -1446,7 +1446,7 @@ function App({ onOpenBilling, onOpenAdmin }: AppProps) {
           framedPreviewUrl={framedPreviewUrl}
           composing={composing}
           canCopy={canDownload}
-          copyDisabled={!hasImage}
+          copyDisabled={!hasImage || !canDownload}
           onCopyScreenshot={() => void handleCopyScreenshot()}
           editable={
             <EditorCanvas

@@ -75,6 +75,7 @@ export const COINS: CoinDef[] = [
       { id: 'trc20', label: 'Tron (TRC20)', feeHint: '1' },
       { id: 'erc20', label: 'Ethereum (ERC20)', feeHint: '3' },
       { id: 'bep20', label: 'BNB Smart Chain (BEP20)', feeHint: '0.29' },
+      { id: 'base', label: 'Base', feeHint: '0.1' },
       { id: 'sol', label: 'Solana', feeHint: '0.5' },
       { id: 'ton', label: 'TON', feeHint: '0.3' },
     ],
@@ -89,8 +90,8 @@ export const COINS: CoinDef[] = [
     networks: [
       { id: 'erc20', label: 'Ethereum (ERC20)', feeHint: '3' },
       { id: 'bep20', label: 'BNB Smart Chain (BEP20)', feeHint: '0.3' },
-      { id: 'sol', label: 'Solana', feeHint: '0.5' },
       { id: 'base', label: 'Base', feeHint: '0.1' },
+      { id: 'sol', label: 'Solana', feeHint: '0.5' },
     ],
   },
   {
@@ -218,22 +219,40 @@ export function detectCoinFromAmount(amountCrypto: string): CoinSymbol | null {
   return hit?.symbol || null
 }
 
-export function parseCryptoAmount(amountCrypto: string): { qty: number; negative: boolean } {
+/** How the crypto amount is signed on screen. */
+export type AmountSign = 'minus' | 'plus' | 'none'
+
+export function parseCryptoAmount(amountCrypto: string): {
+  qty: number
+  negative: boolean
+  sign: AmountSign
+} {
   const raw = String(amountCrypto || '').trim()
-  const negative = raw.startsWith('-')
+  const sign: AmountSign = raw.startsWith('-') ? 'minus' : raw.startsWith('+') ? 'plus' : 'none'
   const num = raw.replace(/[^0-9.]/g, '')
   const qty = Number.parseFloat(num)
-  return { qty: Number.isFinite(qty) ? qty : 0, negative }
+  return {
+    qty: Number.isFinite(qty) ? qty : 0,
+    negative: sign === 'minus',
+    sign,
+  }
 }
 
-export function formatCryptoAmount(qty: number, symbol: string, negative = true): string {
+export function formatCryptoAmount(
+  qty: number,
+  symbol: string,
+  sign: AmountSign | boolean = 'minus',
+): string {
   const coin = getCoin(symbol)
   const decimals = Math.min(8, Math.max(2, coin.decimals))
   let body = qty.toFixed(decimals)
   body = body.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '')
   const text = `${body} ${coin.symbol}`
-  if (negative) return `-${text}`
-  return `+${text}`
+  const mode: AmountSign =
+    typeof sign === 'boolean' ? (sign ? 'minus' : 'plus') : sign
+  if (mode === 'minus') return `-${text}`
+  if (mode === 'plus') return `+${text}`
+  return text
 }
 
 export function formatFiatUsd(usd: number, approx = true): string {
@@ -255,13 +274,66 @@ export function formatUnitPrice(usd: number): string {
   return `$${usd.toPrecision(4)}`
 }
 
+/** Resolve a screen network label/id to a catalog network (fuzzy). */
+export function resolveNetwork(
+  symbol: string,
+  networkHint?: string,
+): NetworkOption {
+  const coin = getCoin(symbol)
+  const hint = String(networkHint || '').trim()
+  if (!hint) return coin.networks[0]
+
+  const exactId = coin.networks.find((n) => n.id === hint)
+  if (exactId) return exactId
+
+  const exactLabel = coin.networks.find(
+    (n) => n.label.toLowerCase() === hint.toLowerCase(),
+  )
+  if (exactLabel) return exactLabel
+
+  const h = hint.toLowerCase()
+  const aliases: Array<{ test: RegExp; id: string }> = [
+    { test: /\btrc20\b|tron/, id: 'trc20' },
+    { test: /\berc20\b|ethereum/, id: 'erc20' },
+    { test: /\bbep20\b|bsc|bnb smart|smart chain|binance/, id: 'bep20' },
+    { test: /\bbep2\b|beacon/, id: 'bep2' },
+    { test: /\bbase\b/, id: 'base' },
+    { test: /\barbitrum\b/, id: 'arbitrum' },
+    { test: /\bsol(ana)?\b/, id: 'sol' },
+    { test: /\bton\b/, id: 'ton' },
+    { test: /\bpolygon\b|\bmatic\b/, id: 'polygon' },
+    { test: /\bbitcoin\b|\bbtc\b/, id: 'bitcoin' },
+  ]
+  for (const a of aliases) {
+    if (!a.test.test(h)) continue
+    const hit = coin.networks.find((n) => n.id === a.id)
+    if (hit) return hit
+  }
+
+  const soft = coin.networks.find(
+    (n) =>
+      n.label.toLowerCase().includes(h) ||
+      h.includes(n.label.toLowerCase()) ||
+      n.id.toLowerCase().includes(h),
+  )
+  return soft || coin.networks[0]
+}
+
 /** Build amount/fiat/fee/network fields from coin + qty + live USD rate. */
 export function applyCoinQuote(opts: {
   symbol: string
   networkId?: string
+  /** Keep this label when it already matches (or fuzzy-matches) the coin. */
+  networkLabel?: string
   qty: number
+  sign?: AmountSign
+  /** @deprecated use sign */
   negative?: boolean
   usdPerCoin: number
+  /** When false, leave fee as empty string (caller keeps existing). */
+  updateFee?: boolean
+  /** When false, fiat is unsigned `$X.XX` without ≈. */
+  approxFiat?: boolean
 }): {
   coin: string
   network: string
@@ -272,19 +344,30 @@ export function applyCoinQuote(opts: {
   unitPrice: string
 } {
   const coin = getCoin(opts.symbol)
-  const network =
-    coin.networks.find((n) => n.id === opts.networkId) || coin.networks[0]
-  const negative = opts.negative ?? true
+  const network = resolveNetwork(opts.symbol, opts.networkId || opts.networkLabel)
+  const sign: AmountSign =
+    opts.sign ?? (opts.negative === false ? 'plus' : opts.negative === true ? 'minus' : 'minus')
   const qty = Math.abs(opts.qty)
   const usd = qty * opts.usdPerCoin
   const feeQty = Number.parseFloat(network.feeHint) || 0
+  const fiatSigned = sign === 'minus' ? -usd : usd
+  const approx = opts.approxFiat !== false
+  // Prefer the screen's existing network label when it already resolves to the same id
+  const keepLabel =
+    opts.networkLabel &&
+    resolveNetwork(opts.symbol, opts.networkLabel).id === network.id
+      ? opts.networkLabel
+      : network.label
+
   return {
     coin: coin.symbol,
-    network: network.label,
-    amountCrypto: formatCryptoAmount(qty, coin.symbol, negative),
-    amountFiat: formatFiatUsd(negative ? -usd : usd, true),
-    price: formatCryptoAmount(qty, coin.symbol, false).replace(/^\+/, ''),
-    fee: `${feeQty} ${coin.symbol}`,
+    network: keepLabel,
+    amountCrypto: formatCryptoAmount(qty, coin.symbol, sign),
+    amountFiat: approx
+      ? formatFiatUsd(fiatSigned, true)
+      : formatFiatUsd(fiatSigned, false).replace(/^≈\s*/, ''),
+    price: formatCryptoAmount(qty, coin.symbol, 'none'),
+    fee: opts.updateFee === false ? '' : `${feeQty} ${coin.symbol}`,
     unitPrice: formatUnitPrice(opts.usdPerCoin),
   }
 }
