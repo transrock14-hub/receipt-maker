@@ -220,7 +220,7 @@ export function detectCoinFromAmount(amountCrypto: string): CoinSymbol | null {
 
 export function parseCryptoAmount(amountCrypto: string): { qty: number; negative: boolean } {
   const raw = String(amountCrypto || '').trim()
-  const negative = raw.startsWith('-') || raw.includes('-')
+  const negative = raw.startsWith('-')
   const num = raw.replace(/[^0-9.]/g, '')
   const qty = Number.parseFloat(num)
   return { qty: Number.isFinite(qty) ? qty : 0, negative }
@@ -232,7 +232,8 @@ export function formatCryptoAmount(qty: number, symbol: string, negative = true)
   let body = qty.toFixed(decimals)
   body = body.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '')
   const text = `${body} ${coin.symbol}`
-  return negative ? `-${text}` : text
+  if (negative) return `-${text}`
+  return `+${text}`
 }
 
 export function formatFiatUsd(usd: number, approx = true): string {
@@ -273,7 +274,7 @@ export function applyCoinQuote(opts: {
   const coin = getCoin(opts.symbol)
   const network =
     coin.networks.find((n) => n.id === opts.networkId) || coin.networks[0]
-  const negative = opts.negative !== false
+  const negative = opts.negative ?? true
   const qty = Math.abs(opts.qty)
   const usd = qty * opts.usdPerCoin
   const feeQty = Number.parseFloat(network.feeHint) || 0
@@ -282,7 +283,7 @@ export function applyCoinQuote(opts: {
     network: network.label,
     amountCrypto: formatCryptoAmount(qty, coin.symbol, negative),
     amountFiat: formatFiatUsd(negative ? -usd : usd, true),
-    price: formatCryptoAmount(qty, coin.symbol, false),
+    price: formatCryptoAmount(qty, coin.symbol, false).replace(/^\+/, ''),
     fee: `${feeQty} ${coin.symbol}`,
     unitPrice: formatUnitPrice(opts.usdPerCoin),
   }

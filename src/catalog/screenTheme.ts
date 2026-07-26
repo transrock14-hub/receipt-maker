@@ -27,7 +27,9 @@ export function defaultThemeForInstitution(institutionId: string): ScreenTheme {
   if (
     institutionId === 'gpay-success' ||
     institutionId === 'metamask-activity' ||
+    institutionId === 'metamask-received' ||
     institutionId === 'binance-withdrawal' ||
+    institutionId === 'binance-deposit' ||
     institutionId === 'revolut-payment' ||
     institutionId === 'stc-pay'
   ) {
@@ -82,6 +84,28 @@ const THEME_OVERRIDES: Record<string, Partial<Record<ScreenTheme, Partial<ThemeC
       palette: ['#181A20', '#EAECEF', '#F0B90B', '#0ECB81', '#26A17B', '#848E9C'],
     },
   },
+  'binance-deposit': {
+    light: {
+      background: '#FFFFFF',
+      ink: '#1E2329',
+      muted: '#707A8A',
+      accent: '#C99400',
+      success: '#0ECB81',
+      line: '#EAECEF',
+      chromeInk: '#1E2329',
+      palette: ['#FFFFFF', '#1E2329', '#C99400', '#0ECB81', '#26A17B', '#707A8A'],
+    },
+    dark: {
+      background: '#181A20',
+      ink: '#EAECEF',
+      muted: '#848E9C',
+      accent: '#F0B90B',
+      success: '#0ECB81',
+      line: '#2B3139',
+      chromeInk: '#EAECEF',
+      palette: ['#181A20', '#EAECEF', '#F0B90B', '#0ECB81', '#26A17B', '#848E9C'],
+    },
+  },
   'coinbase-sent': {
     light: {
       background: '#FFFFFF',
@@ -101,6 +125,27 @@ const THEME_OVERRIDES: Record<string, Partial<Record<ScreenTheme, Partial<ThemeC
       line: '#2A2E35',
       chromeInk: '#FFFFFF',
       palette: ['#0A0B0D', '#FFFFFF', '#578BF2', '#8B919E'],
+    },
+  },
+  'coinbase-received': {
+    light: {
+      background: '#FFFFFF',
+      ink: '#0A0B0D',
+      muted: '#5B616E',
+      accent: '#0052FF',
+      success: '#0A7A3E',
+      line: '#ECEFF3',
+      chromeInk: '#0A0B0D',
+    },
+    dark: {
+      background: '#0A0B0D',
+      ink: '#FFFFFF',
+      muted: '#8B919E',
+      accent: '#578BF2',
+      success: '#3DDC97',
+      line: '#2A2E35',
+      chromeInk: '#FFFFFF',
+      palette: ['#0A0B0D', '#FFFFFF', '#578BF2', '#3DDC97', '#8B919E'],
     },
   },
   'trust-send': {
@@ -124,7 +169,49 @@ const THEME_OVERRIDES: Record<string, Partial<Record<ScreenTheme, Partial<ThemeC
       palette: ['#1B1B1F', '#F5F5F7', '#3B9EFF', '#2BB673'],
     },
   },
+  'trust-receive': {
+    light: {
+      background: '#FFFFFF',
+      ink: '#17171A',
+      muted: '#757B86',
+      accent: '#0481E2',
+      success: '#2BB673',
+      line: '#EEF0F3',
+      chromeInk: '#17171A',
+    },
+    dark: {
+      background: '#1B1B1F',
+      ink: '#F5F5F7',
+      muted: '#9A9AA3',
+      accent: '#3B9EFF',
+      success: '#2BB673',
+      line: '#2E2E34',
+      chromeInk: '#F5F5F7',
+      palette: ['#1B1B1F', '#F5F5F7', '#3B9EFF', '#2BB673'],
+    },
+  },
   'metamask-activity': {
+    light: {
+      background: '#F2F4F6',
+      ink: '#24272A',
+      muted: '#6A737D',
+      accent: '#F6851B',
+      success: '#28A745',
+      line: '#D6D9DC',
+      chromeInk: '#24272A',
+      palette: ['#F2F4F6', '#24272A', '#F6851B', '#28A745'],
+    },
+    dark: {
+      background: '#24272A',
+      ink: '#FCFCFC',
+      muted: '#BBC0C5',
+      accent: '#F6851B',
+      success: '#28A745',
+      line: '#3B4046',
+      chromeInk: '#FCFCFC',
+    },
+  },
+  'metamask-received': {
     light: {
       background: '#F2F4F6',
       ink: '#24272A',

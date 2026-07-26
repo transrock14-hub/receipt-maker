@@ -15,53 +15,78 @@ import {
 import { styleKitForInstitution } from '../../study/styleKits'
 
 export function buildCoinbaseScreen(ctx: ScreenBuildContext): ScreenContent {
-  const kit = styleKitForInstitution('coinbase-sent')
+  return buildCoinbaseKind(ctx, 'sent')
+}
+
+export function buildCoinbaseReceivedScreen(ctx: ScreenBuildContext): ScreenContent {
+  return buildCoinbaseKind(ctx, 'received')
+}
+
+function buildCoinbaseKind(ctx: ScreenBuildContext, kind: 'sent' | 'received'): ScreenContent {
+  const institutionId = kind === 'received' ? 'coinbase-received' : 'coinbase-sent'
+  const kit = styleKitForInstitution(institutionId)
   const ink = ctx.colors.ink
   const muted = ctx.colors.muted
   const blue = ctx.colors.accent
+  const green = ctx.colors.success || '#0A7A3E'
   const bg = ctx.colors.background
   const line = ctx.colors.line
   const font = ctx.colors.fontFamily || kit?.fontFamily || '-apple-system, "SF Pro Text", system-ui, sans-serif'
-  const v = vals(
-    {
-      title: 'Sent',
-      amountCrypto: '45 USDT',
-      amountFiat: '$45.00',
-      status: 'Completed',
-      recipient: '0x7a2f…4b2d',
-      network: 'Base',
-      fee: '$0.02',
-      date: 'Jul 26, 2026 at 2:26 PM',
-      other: 'View transaction',
-      time: '9:41',
-      battery: '100',
-    },
-    ctx.values,
-  )
+  const incoming = kind === 'received'
+  const defaults = incoming
+    ? {
+        title: 'Received',
+        amountCrypto: '+45 USDT',
+        amountFiat: '$45.00',
+        status: 'Completed',
+        recipient: '0x7a2f…4b2d',
+        network: 'Base',
+        fee: '$0.00',
+        date: 'Jul 26, 2026 at 2:26 PM',
+        other: 'View transaction',
+        time: '9:41',
+        battery: '100',
+      }
+    : {
+        title: 'Sent',
+        amountCrypto: '45 USDT',
+        amountFiat: '$45.00',
+        status: 'Completed',
+        recipient: '0x7a2f…4b2d',
+        network: 'Base',
+        fee: '$0.02',
+        date: 'Jul 26, 2026 at 2:26 PM',
+        other: 'View transaction',
+        time: '9:41',
+        battery: '100',
+      }
+  const v = vals(defaults, ctx.values)
   const compact = isCompactHeight(ctx)
   const cx = ctx.width / 2
   const y0 = ctx.top + (compact ? 36 : (kit?.layout?.topInset ?? 52))
   const listY = y0 + (compact ? 160 : 186)
   const rowH = compact ? 38 : 44
+  const peerLabel = incoming ? 'From' : 'To'
+  const navTitle = v.title || (incoming ? 'Received' : 'Sent')
 
   return {
     background: bg,
     palette: ctx.colors.palette.length ? ctx.colors.palette : kit?.palette || [bg, ink, blue, muted],
     fields: [
-      field('title', 'title', 'Title', 'Sent'),
-      field('amountCrypto', 'amountCrypto', 'Amount', '45 USDT'),
-      field('amountFiat', 'amountFiat', 'Fiat', '$45.00'),
-      field('status', 'status', 'Status', 'Completed'),
-      field('recipient', 'recipient', 'To', '0x7a2f…4b2d'),
-      field('networkName', 'network', 'Network', 'Base'),
-      field('fee', 'fee', 'Fee', '$0.02'),
-      field('date', 'date', 'Date', 'Jul 26, 2026 at 2:26 PM'),
-      field('cta', 'other', 'CTA', 'View transaction'),
-      field('time', 'time', 'Time', '9:41'),
-      field('battery', 'battery', 'Battery %', '100'),
+      field('title', 'title', 'Title', defaults.title),
+      field('amountCrypto', 'amountCrypto', 'Amount', defaults.amountCrypto),
+      field('amountFiat', 'amountFiat', 'Fiat', defaults.amountFiat),
+      field('status', 'status', 'Status', defaults.status),
+      field('recipient', 'recipient', peerLabel, defaults.recipient),
+      field('networkName', 'network', 'Network', defaults.network),
+      field('fee', 'fee', 'Fee', defaults.fee),
+      field('date', 'date', 'Date', defaults.date),
+      field('cta', 'other', 'CTA', defaults.other),
+      field('time', 'time', 'Time', defaults.time),
+      field('battery', 'battery', 'Battery %', defaults.battery),
     ],
     objects: [
-      ...tagAll(navBackTitle(ctx, 'Sent', { ink, font }, 'title'), 'header'),
+      ...tagAll(navBackTitle(ctx, navTitle, { ink, font }, 'title'), 'header'),
       ...coinbaseMark('coin', cx, y0, compact ? 20 : 24),
       tag(
         textObj(
@@ -73,7 +98,7 @@ export function buildCoinbaseScreen(ctx: ScreenBuildContext): ScreenContent {
           600,
           'amountCrypto',
           font,
-          ink,
+          incoming ? green : ink,
           { originX: 'center' },
         ),
         'header',
@@ -93,7 +118,18 @@ export function buildCoinbaseScreen(ctx: ScreenBuildContext): ScreenContent {
         ),
         'header',
       ),
-      tag(rect('statusPill', cx - 54, y0 + (compact ? 108 : 128), 108, 28, ctx.theme === 'dark' ? '#1A2744' : '#E8F1FF', 14), 'header'),
+      tag(
+        rect(
+          'statusPill',
+          cx - 54,
+          y0 + (compact ? 108 : 128),
+          108,
+          28,
+          ctx.theme === 'dark' ? '#1A2744' : '#E8F1FF',
+          14,
+        ),
+        'header',
+      ),
       tag(
         textObj('status', v.status!, y0 + (compact ? 115 : 135), cx, 12, 600, 'status', font, blue, {
           originX: 'center',
@@ -107,7 +143,7 @@ export function buildCoinbaseScreen(ctx: ScreenBuildContext): ScreenContent {
           [
             {
               labelId: 'toL',
-              label: 'To',
+              label: peerLabel,
               valueId: 'recipient',
               value: v.recipient!,
               fieldKey: 'recipient',
@@ -139,7 +175,16 @@ export function buildCoinbaseScreen(ctx: ScreenBuildContext): ScreenContent {
 }
 
 export function buildTrustScreen(ctx: ScreenBuildContext): ScreenContent {
-  const kit = styleKitForInstitution('trust-send')
+  return buildTrustKind(ctx, 'send')
+}
+
+export function buildTrustReceiveScreen(ctx: ScreenBuildContext): ScreenContent {
+  return buildTrustKind(ctx, 'receive')
+}
+
+function buildTrustKind(ctx: ScreenBuildContext, kind: 'send' | 'receive'): ScreenContent {
+  const institutionId = kind === 'receive' ? 'trust-receive' : 'trust-send'
+  const kit = styleKitForInstitution(institutionId)
   const bg = ctx.colors.background
   const ink = ctx.colors.ink
   const muted = ctx.colors.muted
@@ -147,45 +192,60 @@ export function buildTrustScreen(ctx: ScreenBuildContext): ScreenContent {
   const green = ctx.colors.success
   const line = ctx.colors.line
   const font = ctx.colors.fontFamily || kit?.fontFamily || '-apple-system, "SF Pro Text", Roboto, sans-serif'
-  const v = vals(
-    {
-      title: 'Send',
-      amountCrypto: '-45 USDT',
-      amountFiat: '$45.00',
-      status: 'Success',
-      recipient: '0x7a2f8c1d…c91e4b2d',
-      network: 'Smart Chain',
-      fee: '0.00021 BNB',
-      date: '26 Jul 2026, 14:26',
-      other: 'Done',
-      time: '14:26',
-      battery: '87',
-    },
-    ctx.values,
-  )
+  const incoming = kind === 'receive'
+  const defaults = incoming
+    ? {
+        title: 'Receive',
+        amountCrypto: '+45 USDT',
+        amountFiat: '$45.00',
+        status: 'Success',
+        recipient: '0x7a2f8c1d…c91e4b2d',
+        network: 'Smart Chain',
+        fee: '0 BNB',
+        date: '26 Jul 2026, 14:26',
+        other: 'Done',
+        time: '14:26',
+        battery: '87',
+      }
+    : {
+        title: 'Send',
+        amountCrypto: '-45 USDT',
+        amountFiat: '$45.00',
+        status: 'Success',
+        recipient: '0x7a2f8c1d…c91e4b2d',
+        network: 'Smart Chain',
+        fee: '0.00021 BNB',
+        date: '26 Jul 2026, 14:26',
+        other: 'Done',
+        time: '14:26',
+        battery: '87',
+      }
+  const v = vals(defaults, ctx.values)
   const compact = isCompactHeight(ctx)
   const cx = ctx.width / 2
   const y0 = ctx.top + (compact ? 36 : (kit?.layout?.topInset ?? 48))
   const listY = y0 + (compact ? 168 : 196)
   const rowH = compact ? 38 : 44
+  const peerLabel = incoming ? 'From' : 'Recipient'
+  const navTitle = v.title || (incoming ? 'Receive' : 'Send')
 
   return {
     background: bg,
     palette: ctx.colors.palette.length ? ctx.colors.palette : kit?.palette || [bg, ink, blue, green],
     fields: [
-      field('title', 'title', 'Title', 'Send'),
-      field('amountCrypto', 'amountCrypto', 'Amount', '-45 USDT'),
-      field('amountFiat', 'amountFiat', 'Fiat', '$45.00'),
-      field('status', 'status', 'Status', 'Success'),
-      field('recipient', 'recipient', 'Recipient', '0x7a2f8c1d…c91e4b2d'),
-      field('networkName', 'network', 'Network', 'Smart Chain'),
-      field('fee', 'fee', 'Fee', '0.00021 BNB'),
-      field('date', 'date', 'Date', '26 Jul 2026, 14:26'),
-      field('time', 'time', 'Time', '14:26'),
-      field('battery', 'battery', 'Battery %', '87'),
+      field('title', 'title', 'Title', defaults.title),
+      field('amountCrypto', 'amountCrypto', 'Amount', defaults.amountCrypto),
+      field('amountFiat', 'amountFiat', 'Fiat', defaults.amountFiat),
+      field('status', 'status', 'Status', defaults.status),
+      field('recipient', 'recipient', peerLabel, defaults.recipient),
+      field('networkName', 'network', 'Network', defaults.network),
+      field('fee', 'fee', 'Fee', defaults.fee),
+      field('date', 'date', 'Date', defaults.date),
+      field('time', 'time', 'Time', defaults.time),
+      field('battery', 'battery', 'Battery %', defaults.battery),
     ],
     objects: [
-      ...tagAll(navBackTitle(ctx, 'Send', { ink, font }, 'title'), 'header'),
+      ...tagAll(navBackTitle(ctx, navTitle, { ink, font }, 'title'), 'header'),
       ...successCheck('ok', cx, y0, compact ? 24 : 28, green),
       tag(
         textObj('status', v.status!, y0 + (compact ? 60 : 70), cx, 17, 600, 'status', font, ink, {
@@ -203,7 +263,7 @@ export function buildTrustScreen(ctx: ScreenBuildContext): ScreenContent {
           700,
           'amountCrypto',
           font,
-          ink,
+          incoming ? green : ink,
           { originX: 'center' },
         ),
         'header',
@@ -230,7 +290,7 @@ export function buildTrustScreen(ctx: ScreenBuildContext): ScreenContent {
           [
             {
               labelId: 'toL',
-              label: 'Recipient',
+              label: peerLabel,
               valueId: 'recipient',
               value: v.recipient!,
               fieldKey: 'recipient',
@@ -263,7 +323,16 @@ export function buildTrustScreen(ctx: ScreenBuildContext): ScreenContent {
 }
 
 export function buildMetaMaskScreen(ctx: ScreenBuildContext): ScreenContent {
-  const kit = styleKitForInstitution('metamask-activity')
+  return buildMetaMaskKind(ctx, 'sent')
+}
+
+export function buildMetaMaskReceivedScreen(ctx: ScreenBuildContext): ScreenContent {
+  return buildMetaMaskKind(ctx, 'received')
+}
+
+function buildMetaMaskKind(ctx: ScreenBuildContext, kind: 'sent' | 'received'): ScreenContent {
+  const institutionId = kind === 'received' ? 'metamask-received' : 'metamask-activity'
+  const kit = styleKitForInstitution(institutionId)
   const bg = ctx.colors.background
   const ink = ctx.colors.ink
   const muted = ctx.colors.muted
@@ -271,22 +340,35 @@ export function buildMetaMaskScreen(ctx: ScreenBuildContext): ScreenContent {
   const green = ctx.colors.success
   const line = ctx.colors.line
   const font = ctx.colors.fontFamily || kit?.fontFamily || 'Roboto, "Noto Sans", sans-serif'
-  const v = vals(
-    {
-      title: 'Transaction',
-      amountCrypto: '-45 USDT',
-      amountFiat: '$45.00',
-      status: 'Confirmed',
-      recipient: '0x7a2f…4b2d',
-      network: 'BNB Smart Chain',
-      fee: '0.00021 BNB',
-      date: 'Jul 26 · 14:26',
-      other: 'View on block explorer',
-      time: '14:26',
-      battery: '87',
-    },
-    ctx.values,
-  )
+  const incoming = kind === 'received'
+  const defaults = incoming
+    ? {
+        title: 'Received',
+        amountCrypto: '+45 USDT',
+        amountFiat: '$45.00',
+        status: 'Confirmed',
+        recipient: '0x7a2f…4b2d',
+        network: 'BNB Smart Chain',
+        fee: '0 BNB',
+        date: 'Jul 26 · 14:26',
+        other: 'View on block explorer',
+        time: '14:26',
+        battery: '87',
+      }
+    : {
+        title: 'Transaction',
+        amountCrypto: '-45 USDT',
+        amountFiat: '$45.00',
+        status: 'Confirmed',
+        recipient: '0x7a2f…4b2d',
+        network: 'BNB Smart Chain',
+        fee: '0.00021 BNB',
+        date: 'Jul 26 · 14:26',
+        other: 'View on block explorer',
+        time: '14:26',
+        battery: '87',
+      }
+  const v = vals(defaults, ctx.values)
   const compact = isCompactHeight(ctx)
   const y0 = ctx.top + (compact ? 36 : (kit?.layout?.topInset ?? 48))
   const cx = ctx.width / 2
@@ -294,25 +376,27 @@ export function buildMetaMaskScreen(ctx: ScreenBuildContext): ScreenContent {
   const cardH = compact ? 120 : 136
   const listY = cardTop + cardH + 12
   const rowH = compact ? 36 : 42
+  const peerLabel = incoming ? 'From' : 'To'
+  const navTitle = v.title || (incoming ? 'Received' : 'Transaction')
 
   return {
     background: bg,
     palette: ctx.colors.palette.length ? ctx.colors.palette : kit?.palette || [bg, ink, orange, green],
     fields: [
-      field('title', 'title', 'Title', 'Transaction'),
-      field('amountCrypto', 'amountCrypto', 'Amount', '-45 USDT'),
-      field('amountFiat', 'amountFiat', 'Fiat', '$45.00'),
-      field('status', 'status', 'Status', 'Confirmed'),
-      field('recipient', 'recipient', 'To', '0x7a2f…4b2d'),
-      field('networkName', 'network', 'Network', 'BNB Smart Chain'),
-      field('fee', 'fee', 'Gas', '0.00021 BNB'),
-      field('date', 'date', 'Date', 'Jul 26 · 14:26'),
-      field('cta', 'other', 'CTA', 'View on block explorer'),
-      field('time', 'time', 'Time', '14:26'),
-      field('battery', 'battery', 'Battery %', '87'),
+      field('title', 'title', 'Title', defaults.title),
+      field('amountCrypto', 'amountCrypto', 'Amount', defaults.amountCrypto),
+      field('amountFiat', 'amountFiat', 'Fiat', defaults.amountFiat),
+      field('status', 'status', 'Status', defaults.status),
+      field('recipient', 'recipient', peerLabel, defaults.recipient),
+      field('networkName', 'network', 'Network', defaults.network),
+      field('fee', 'fee', 'Gas', defaults.fee),
+      field('date', 'date', 'Date', defaults.date),
+      field('cta', 'other', 'CTA', defaults.other),
+      field('time', 'time', 'Time', defaults.time),
+      field('battery', 'battery', 'Battery %', defaults.battery),
     ],
     objects: [
-      ...tagAll(navBackTitle(ctx, v.title || 'Transaction', { ink, font }), 'header'),
+      ...tagAll(navBackTitle(ctx, navTitle, { ink, font }), 'header'),
       ...metamaskMark('mm', cx, y0 - 2, compact ? 14 : 17),
       tag(rect('card', 16, cardTop, ctx.width - 32, cardH, ctx.theme === 'dark' ? '#2C3035' : '#FFFFFF', 14), 'header'),
       tag(
@@ -325,7 +409,7 @@ export function buildMetaMaskScreen(ctx: ScreenBuildContext): ScreenContent {
           700,
           'amountCrypto',
           font,
-          ink,
+          incoming ? green : ink,
           { originX: 'center' },
         ),
         'header',
@@ -364,7 +448,7 @@ export function buildMetaMaskScreen(ctx: ScreenBuildContext): ScreenContent {
           [
             {
               labelId: 'toL',
-              label: 'To',
+              label: peerLabel,
               valueId: 'recipient',
               value: v.recipient!,
               fieldKey: 'recipient',

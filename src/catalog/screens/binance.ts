@@ -19,7 +19,7 @@ const BINANCE_SANS = 'Roboto, Inter, "Noto Sans", sans-serif'
  * Defaults tuned to a real Binance Withdrawal Details capture
  * (Wallet → History → Withdrawal).
  */
-const DEFAULTS: Partial<GenerateValues> = {
+const WITHDRAWAL_DEFAULTS: Partial<GenerateValues> = {
   title: 'Withdrawal Details',
   coin: 'USDT',
   amountCrypto: '-45 USDT',
@@ -29,6 +29,27 @@ const DEFAULTS: Partial<GenerateValues> = {
   network: 'BNB Smart Chain (BEP20)',
   price: '45 USDT',
   fee: '0.29 USDT',
+  date: '2026-07-26 14:26:18',
+  accountOrIban: '0x8f3a9c2e...a7e21c',
+  walletType: 'Spot Wallet',
+  other: 'View on blockchain explorer',
+  time: '14:26',
+  battery: '87',
+}
+
+/**
+ * Binance Deposit Details — Wallet → History → Deposit (incoming).
+ */
+const DEPOSIT_DEFAULTS: Partial<GenerateValues> = {
+  title: 'Deposit Details',
+  coin: 'USDT',
+  amountCrypto: '+45 USDT',
+  amountFiat: '≈ $45.00',
+  status: 'Completed',
+  recipient: '0x7a2f8c1d...c91e4b2d',
+  network: 'Tron (TRC20)',
+  price: '45 USDT',
+  fee: '0 USDT',
   date: '2026-07-26 14:26:18',
   accountOrIban: '0x8f3a9c2e...a7e21c',
   walletType: 'Spot Wallet',
@@ -59,9 +80,13 @@ function binanceNav(ctx: ScreenBuildContext, title: string, ink: string, font: s
   ]
 }
 
-export function buildBinanceScreen(ctx: ScreenBuildContext): ScreenContent {
-  const kit = styleKitForInstitution('binance-withdrawal')
-  const v = { ...DEFAULTS, ...kit?.defaults, ...ctx.values }
+type BinanceKind = 'withdrawal' | 'deposit'
+
+function buildBinanceKind(ctx: ScreenBuildContext, kind: BinanceKind): ScreenContent {
+  const institutionId = kind === 'deposit' ? 'binance-deposit' : 'binance-withdrawal'
+  const defaults = kind === 'deposit' ? DEPOSIT_DEFAULTS : WITHDRAWAL_DEFAULTS
+  const kit = styleKitForInstitution(institutionId)
+  const v = { ...defaults, ...kit?.defaults, ...ctx.values }
   const ink = ctx.colors.ink
   const muted = ctx.colors.muted
   const yellow = ctx.colors.accent
@@ -83,23 +108,28 @@ export function buildBinanceScreen(ctx: ScreenBuildContext): ScreenContent {
   const ctaY = listY + rows * rowH + (compact ? 12 : 20)
   const amountSize = compact ? 24 : 28
 
-  const txid = (v.accountOrIban || DEFAULTS.accountOrIban || '').replace(/\s*>\s*$/, '')
+  const txid = (v.accountOrIban || defaults.accountOrIban || '').replace(/\s*>\s*$/, '')
   const coinSym = (v.coin || 'USDT').toUpperCase()
+  const amountLabel = kind === 'deposit' ? 'Deposit amount' : 'Withdraw amount'
+  const addressLabel = kind === 'deposit' ? 'From' : 'Address'
+  const fallbackAmount = kind === 'deposit' ? '+45 USDT' : '-45 USDT'
+  const navTitle =
+    v.title || (kind === 'deposit' ? 'Deposit Details' : 'Withdrawal Details')
 
   const objects = [
-    ...tagAll(binanceNav(ctx, v.title || 'Withdrawal Details', ink, font), 'header'),
+    ...tagAll(binanceNav(ctx, navTitle, ink, font), 'header'),
     ...coinIconFor(coinSym, 'coinMark', cx, y0, coinR),
     tag(
       textObj(
         'amountCrypto',
-        v.amountCrypto || '-45 USDT',
+        v.amountCrypto || fallbackAmount,
         afterCoin,
         cx,
         amountSize,
         500,
         'amountCrypto',
         font,
-        ink,
+        kind === 'deposit' ? green : ink,
         { originX: 'center' },
       ),
       'header',
@@ -142,7 +172,7 @@ export function buildBinanceScreen(ctx: ScreenBuildContext): ScreenContent {
           { labelId: 'coinL', label: 'Coin', valueId: 'coin', value: coinSym, fieldKey: 'coin' },
           {
             labelId: 'addrL',
-            label: 'Address',
+            label: addressLabel,
             valueId: 'recipient',
             value: v.recipient || '',
             fieldKey: 'recipient',
@@ -157,7 +187,7 @@ export function buildBinanceScreen(ctx: ScreenBuildContext): ScreenContent {
           },
           {
             labelId: 'amtL',
-            label: 'Withdraw amount',
+            label: amountLabel,
             valueId: 'price',
             value: v.price || '',
             fieldKey: 'price',
@@ -221,25 +251,36 @@ export function buildBinanceScreen(ctx: ScreenBuildContext): ScreenContent {
   return {
     objects,
     background: bg,
-    palette: ctx.colors.palette.length ? ctx.colors.palette : kit?.palette || [bg, ink, yellow, green, '#26A17B', muted],
+    palette: ctx.colors.palette.length
+      ? ctx.colors.palette
+      : kit?.palette || [bg, ink, yellow, green, '#26A17B', muted],
     fields: [
-      field('title', 'title', 'Title', DEFAULTS.title!),
-      field('coin', 'coin', 'Coin', DEFAULTS.coin!),
-      field('amountCrypto', 'amountCrypto', 'Amount', DEFAULTS.amountCrypto!),
-      field('amountFiat', 'amountFiat', 'Fiat', DEFAULTS.amountFiat!),
-      field('status', 'status', 'Status', DEFAULTS.status!),
-      field('recipient', 'recipient', 'Address', DEFAULTS.recipient!),
-      field('networkName', 'network', 'Network', DEFAULTS.network!),
-      field('price', 'price', 'Withdraw amount', DEFAULTS.price!),
-      field('fee', 'fee', 'Fee', DEFAULTS.fee!),
-      field('date', 'date', 'Date', DEFAULTS.date!),
-      field('account', 'accountOrIban', 'TxID', DEFAULTS.accountOrIban!),
-      field('walletType', 'walletType', 'Wallet', DEFAULTS.walletType!),
-      field('cta', 'other', 'CTA', DEFAULTS.other!),
-      field('time', 'time', 'Time', DEFAULTS.time!),
-      field('battery', 'battery', 'Battery %', DEFAULTS.battery!),
+      field('title', 'title', 'Title', defaults.title!),
+      field('coin', 'coin', 'Coin', defaults.coin!),
+      field('amountCrypto', 'amountCrypto', 'Amount', defaults.amountCrypto!),
+      field('amountFiat', 'amountFiat', 'Fiat', defaults.amountFiat!),
+      field('status', 'status', 'Status', defaults.status!),
+      field('recipient', 'recipient', addressLabel, defaults.recipient!),
+      field('networkName', 'network', 'Network', defaults.network!),
+      field('price', 'price', amountLabel, defaults.price!),
+      field('fee', 'fee', 'Fee', defaults.fee!),
+      field('date', 'date', 'Date', defaults.date!),
+      field('account', 'accountOrIban', 'TxID', defaults.accountOrIban!),
+      field('walletType', 'walletType', 'Wallet', defaults.walletType!),
+      field('cta', 'other', 'CTA', defaults.other!),
+      field('time', 'time', 'Time', defaults.time!),
+      field('battery', 'battery', 'Battery %', defaults.battery!),
     ],
   }
 }
 
-export const BINANCE_DEFAULTS = DEFAULTS
+export function buildBinanceScreen(ctx: ScreenBuildContext): ScreenContent {
+  return buildBinanceKind(ctx, 'withdrawal')
+}
+
+export function buildBinanceDepositScreen(ctx: ScreenBuildContext): ScreenContent {
+  return buildBinanceKind(ctx, 'deposit')
+}
+
+export const BINANCE_DEFAULTS = WITHDRAWAL_DEFAULTS
+export const BINANCE_DEPOSIT_DEFAULTS = DEPOSIT_DEFAULTS

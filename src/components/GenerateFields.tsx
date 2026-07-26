@@ -89,13 +89,14 @@ export function GenerateFields({ values, onChange, fieldKeys, composing }: Props
     const next = getCoin(symbol)
     const parsed = parseCryptoAmount(values.amountCrypto)
     const qty = parsed.qty > 0 ? parsed.qty : symbol === 'USDT' || symbol === 'USDC' ? 45 : 0.01
-    applyQuote(next.symbol, next.networks[0].id, qty, parsed.negative || true)
+    // Keep outgoing (-) vs incoming (+) based on current amount sign
+    applyQuote(next.symbol, next.networks[0].id, qty, parsed.negative)
   }
 
   const onNetworkChange = (netId: string) => {
     const parsed = parseCryptoAmount(values.amountCrypto)
     const qty = parsed.qty > 0 ? parsed.qty : 45
-    applyQuote(coin.symbol, netId, qty, parsed.negative || true)
+    applyQuote(coin.symbol, netId, qty, parsed.negative)
   }
 
   const onAmountBlur = () => {

@@ -84,6 +84,23 @@ check('light/dark change background for binance', () => {
   }
 })
 
+check('incoming deposit screens use positive amounts', () => {
+  for (const id of ['binance-deposit', 'coinbase-received', 'trust-receive', 'metamask-received']) {
+    const c = composeScreenshot('s24-ultra', id, {}, 'dark')
+    const amt = (c.canvasJson as { objects: Array<Record<string, unknown>> }).objects.find(
+      (o) => o.receiptId === 'amountCrypto',
+    )
+    const text = String(amt?.text || '')
+    if (text.startsWith('-')) throw new Error(`${id} amount should be incoming, got ${text}`)
+    if (!text.includes('+') && !/^\d/.test(text.trim())) {
+      throw new Error(`${id} expected +amount, got ${text}`)
+    }
+    if (!c.name.toLowerCase().match(/deposit|received|receive/)) {
+      throw new Error(`${id} name should look incoming: ${c.name}`)
+    }
+  }
+})
+
 check('device list has apple+samsung+google+desktop', () => {
   const makers = new Set(DEVICES.map((d) => d.manufacturer))
   for (const m of ['Apple', 'Samsung', 'Google', 'Microsoft']) {
