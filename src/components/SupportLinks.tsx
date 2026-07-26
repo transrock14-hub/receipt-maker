@@ -157,3 +157,88 @@ export function SupportWidget() {
     document.body,
   )
 }
+
+/** Header dropdown — “Contact support” → Telegram / WhatsApp. */
+export function SupportCareMenu({ className }: { className?: string }) {
+  const [support, setSupport] = useState<SupportInfo | null>(null)
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    let alive = true
+    void api
+      .support()
+      .then((res) => {
+        if (alive) setSupport(res.support)
+      })
+      .catch(() => {
+        if (alive) setSupport(null)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  if (!support?.enabled) return null
+
+  return (
+    <div
+      className={`support-care${open ? ' is-open' : ''}${className ? ` ${className}` : ''}`}
+      ref={rootRef}
+    >
+      <button
+        type="button"
+        className="support-care-btn"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onClick={() => setOpen((v) => !v)}
+      >
+        Contact support
+      </button>
+      {open ? (
+        <div className="support-care-panel" role="dialog" aria-label="Contact support">
+          <p className="support-widget-title">Contact support</p>
+          <p className="support-widget-msg">{support.message}</p>
+          <div className="support-widget-actions">
+            {support.telegram_url ? (
+              <a
+                className="support-btn support-telegram"
+                href={support.telegram_url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Telegram
+              </a>
+            ) : null}
+            {support.whatsapp_url ? (
+              <a
+                className="support-btn support-whatsapp"
+                href={support.whatsapp_url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                WhatsApp
+              </a>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}

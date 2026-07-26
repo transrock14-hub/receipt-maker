@@ -6,7 +6,6 @@ import { BillingPage } from './pages/Billing'
 import { AdminPage } from './pages/Admin'
 import { ToastProvider } from './ui/Toast'
 import { ErrorBoundary } from './ui/ErrorBoundary'
-import { SupportWidget } from './components/SupportLinks'
 
 type View = 'studio' | 'billing' | 'admin'
 
@@ -40,7 +39,6 @@ function Gate() {
         onOpenBilling={() => setView('billing')}
         onOpenAdmin={user.role === 'admin' ? () => setView('admin') : undefined}
       />
-      <SupportWidget />
     </ErrorBoundary>
   )
 }
