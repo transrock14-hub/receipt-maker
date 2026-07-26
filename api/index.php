@@ -17,6 +17,7 @@ try {
   ensure_invites_schema();
   ensure_settings_schema();
   ensure_notifications_schema();
+  ensure_plans_schema();
   route($method, $path);
 } catch (Throwable $e) {
   respond([
@@ -100,6 +101,15 @@ function route(string $method, string $path): void {
   }
   if ($method === 'POST' && $path === '/admin/support') {
     handle_admin_support_save();
+  }
+  if ($method === 'GET' && $path === '/admin/plans') {
+    handle_admin_plans_list();
+  }
+  if ($method === 'POST' && $path === '/admin/plans') {
+    handle_admin_plans_create();
+  }
+  if ($method === 'POST' && $path === '/admin/plans/update') {
+    handle_admin_plans_update();
   }
   if ($method === 'GET' && $path === '/admin/notifications') {
     handle_admin_notifications_list();
@@ -380,8 +390,148 @@ function handle_me(): void {
 }
 
 function handle_plans(): void {
-  $rows = db()->query('SELECT id, name, price_usdt, days FROM plans WHERE active = 1 ORDER BY days ASC')->fetchAll();
-  respond(['ok' => true, 'plans' => $rows]);
+  ensure_plans_schema();
+  $rows = db()->query(
+    'SELECT id, name, price_usdt, days, active, sort_order, recommended, features
+     FROM plans WHERE active = 1
+     ORDER BY sort_order ASC, days ASC, name ASC'
+  )->fetchAll();
+  respond([
+    'ok' => true,
+    'plans' => array_map('plan_to_public', $rows),
+  ]);
+}
+
+function handle_admin_plans_list(): void {
+  require_admin();
+  ensure_plans_schema();
+  $rows = db()->query(
+    'SELECT id, name, price_usdt, days, active, sort_order, recommended, features
+     FROM plans
+     ORDER BY sort_order ASC, days ASC, name ASC'
+  )->fetchAll();
+  respond([
+    'ok' => true,
+    'plans' => array_map('plan_to_public', $rows),
+  ]);
+}
+
+function handle_admin_plans_create(): void {
+  $admin = require_admin();
+  ensure_plans_schema();
+  $body = json_input();
+
+  $name = trim((string)($body['name'] ?? ''));
+  $price = (float)($body['price_usdt'] ?? $body['price'] ?? 0);
+  $days = (int)($body['days'] ?? 0);
+  $sort = isset($body['sort_order']) ? (int)$body['sort_order'] : $days;
+  $recommended = !empty($body['recommended']);
+  $active = array_key_exists('active', $body) ? !empty($body['active']) : true;
+  $featuresJson = encode_plan_features($body['features'] ?? default_plan_features());
+
+  $id = trim((string)($body['id'] ?? ''));
+  if ($id === '') {
+    $id = slugify_plan_id($name);
+    if ($days > 0) {
+      $withDays = $id . $days;
+      if (strlen($withDays) <= 32) $id = $withDays;
+    }
+  }
+  $id = strtolower(preg_replace('/[^a-z0-9_\-]/', '', $id) ?? '');
+  if ($id === '') fail('Plan id is required');
+  if (strlen($id) > 32) $id = substr($id, 0, 32);
+
+  if ($name === '') fail('Plan name is required');
+  if ($price < 0) fail('Price must be >= 0');
+  if ($days < 1) fail('Days must be at least 1');
+  if (strlen($name) > 80) $name = substr($name, 0, 80);
+
+  $exists = db()->prepare('SELECT id FROM plans WHERE id = ? LIMIT 1');
+  $exists->execute([$id]);
+  if ($exists->fetch()) fail('Plan id already exists');
+
+  if ($recommended) clear_other_recommended(null);
+
+  db()->prepare(
+    'INSERT INTO plans (id, name, price_usdt, days, active, sort_order, recommended, features)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  )->execute([
+    $id,
+    $name,
+    round($price, 2),
+    $days,
+    $active ? 1 : 0,
+    $sort,
+    $recommended ? 1 : 0,
+    $featuresJson,
+  ]);
+
+  log_activity('admin_plan_create', $admin, $name, ['plan_id' => $id, 'price_usdt' => $price, 'days' => $days]);
+  log_admin((int)$admin['id'], 'plan_create', null, ['plan_id' => $id]);
+
+  $stmt = db()->prepare('SELECT * FROM plans WHERE id = ? LIMIT 1');
+  $stmt->execute([$id]);
+  respond(['ok' => true, 'plan' => plan_to_public($stmt->fetch())]);
+}
+
+function handle_admin_plans_update(): void {
+  $admin = require_admin();
+  ensure_plans_schema();
+  $body = json_input();
+  $id = trim((string)($body['id'] ?? $body['plan_id'] ?? ''));
+  if ($id === '') fail('Plan id is required');
+
+  $stmt = db()->prepare('SELECT * FROM plans WHERE id = ? LIMIT 1');
+  $stmt->execute([$id]);
+  $plan = $stmt->fetch();
+  if (!$plan) fail('Plan not found', 404);
+
+  $name = array_key_exists('name', $body) ? trim((string)$body['name']) : (string)$plan['name'];
+  $price = array_key_exists('price_usdt', $body)
+    ? (float)$body['price_usdt']
+    : (array_key_exists('price', $body) ? (float)$body['price'] : (float)$plan['price_usdt']);
+  $days = array_key_exists('days', $body) ? (int)$body['days'] : (int)$plan['days'];
+  $sort = array_key_exists('sort_order', $body) ? (int)$body['sort_order'] : (int)($plan['sort_order'] ?? $days);
+  $active = array_key_exists('active', $body) ? !empty($body['active']) : !empty($plan['active']);
+  $recommended = array_key_exists('recommended', $body)
+    ? !empty($body['recommended'])
+    : !empty($plan['recommended']);
+  $featuresJson = array_key_exists('features', $body)
+    ? encode_plan_features($body['features'])
+    : encode_plan_features($plan['features'] ?? '');
+
+  if ($name === '') fail('Plan name is required');
+  if ($price < 0) fail('Price must be >= 0');
+  if ($days < 1) fail('Days must be at least 1');
+  if (strlen($name) > 80) $name = substr($name, 0, 80);
+
+  if ($recommended) clear_other_recommended($id);
+
+  db()->prepare(
+    'UPDATE plans SET name = ?, price_usdt = ?, days = ?, active = ?, sort_order = ?, recommended = ?, features = ?
+     WHERE id = ?'
+  )->execute([
+    $name,
+    round($price, 2),
+    $days,
+    $active ? 1 : 0,
+    $sort,
+    $recommended ? 1 : 0,
+    $featuresJson,
+    $id,
+  ]);
+
+  log_activity('admin_plan_update', $admin, $name, [
+    'plan_id' => $id,
+    'price_usdt' => $price,
+    'days' => $days,
+    'active' => $active,
+    'recommended' => $recommended,
+  ]);
+  log_admin((int)$admin['id'], 'plan_update', null, ['plan_id' => $id]);
+
+  $stmt->execute([$id]);
+  respond(['ok' => true, 'plan' => plan_to_public($stmt->fetch())]);
 }
 
 function handle_support_get(): void {

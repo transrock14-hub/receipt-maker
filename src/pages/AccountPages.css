@@ -332,6 +332,66 @@
   white-space: pre-wrap;
 }
 
+.plan-admin-list {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.plan-admin-card {
+  padding: 0.85rem 0.9rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #e8e4dc;
+  background: #fafaf8;
+}
+
+.plan-admin-card.is-inactive {
+  opacity: 0.72;
+}
+
+.plan-admin-card-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.plan-admin-card-top code {
+  font-size: 0.78rem;
+  background: #efeafc;
+  color: #4a3a9a;
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+}
+
+.plan-admin-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.plan-admin-toggles label,
+.plan-check-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.plan-features-label {
+  grid-column: 1 / -1;
+}
+
+.plan-admin-fields {
+  margin-top: 0;
+}
+
 .password-row {
   display: flex;
   gap: 0.35rem;

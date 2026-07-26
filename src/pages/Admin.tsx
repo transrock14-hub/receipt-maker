@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { api, type ActivityEvent, type AppNotification, type AuthUser, type Invite } from '../auth/api'
+import { api, type ActivityEvent, type AppNotification, type AuthUser, type Invite, type Plan } from '../auth/api'
 import { useAuth } from '../auth/AuthContext'
 import { useToast } from '../ui/Toast'
 import './AccountPages.css'
@@ -9,6 +9,43 @@ type Props = {
 }
 
 type Credentials = { username: string; password: string; name: string }
+
+type PlanDraft = {
+  id: string
+  name: string
+  price_usdt: string
+  days: string
+  sort_order: string
+  featuresText: string
+  recommended: boolean
+  active: boolean
+}
+
+const DEFAULT_FEATURES = [
+  'Download & copy screenshots',
+  'Batch export',
+  'All wallets & banks',
+]
+
+function planToDraft(p: Plan): PlanDraft {
+  return {
+    id: p.id,
+    name: p.name,
+    price_usdt: String(Number(p.price_usdt)),
+    days: String(p.days),
+    sort_order: String(p.sort_order ?? p.days),
+    featuresText: (p.features?.length ? p.features : DEFAULT_FEATURES).join('\n'),
+    recommended: Boolean(p.recommended),
+    active: p.active !== false,
+  }
+}
+
+function featuresFromText(text: string): string[] {
+  return text
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
 
 function randomPassword(length = 12): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$'
@@ -38,6 +75,8 @@ function actionLabel(action: string): string {
     admin_invite_revoke: 'Admin · revoke invite',
     admin_support_update: 'Admin · support',
     admin_notification_send: 'Admin · notify',
+    admin_plan_create: 'Admin · plan create',
+    admin_plan_update: 'Admin · plan update',
   }
   return map[action] || action.replace(/_/g, ' ')
 }
@@ -95,6 +134,15 @@ export function AdminPage({ onBack }: Props) {
   const [notifBusy, setNotifBusy] = useState(false)
   const [sentNotifs, setSentNotifs] = useState<AppNotification[]>([])
 
+  const [planDrafts, setPlanDrafts] = useState<PlanDraft[]>([])
+  const [planBusyId, setPlanBusyId] = useState<string | null>(null)
+  const [newPlanName, setNewPlanName] = useState('')
+  const [newPlanPrice, setNewPlanPrice] = useState('29')
+  const [newPlanDays, setNewPlanDays] = useState('30')
+  const [newPlanFeatures, setNewPlanFeatures] = useState(DEFAULT_FEATURES.join('\n'))
+  const [newPlanRecommended, setNewPlanRecommended] = useState(false)
+  const [newPlanBusy, setNewPlanBusy] = useState(false)
+
   const loadActivity = useCallback(async (query?: string, action?: string) => {
     const res = await api.adminActivity({
       q: query || undefined,
@@ -107,13 +155,14 @@ export function AdminPage({ onBack }: Props) {
 
   const load = useCallback(async (query?: string) => {
     try {
-      const [u, p, s, inv, support, notifs] = await Promise.all([
+      const [u, p, s, inv, support, notifs, plans] = await Promise.all([
         api.adminUsers(query),
         api.adminPayments(),
         api.adminStats(),
         api.adminInvites(),
         api.adminSupport(),
         api.adminNotifications(),
+        api.adminPlans(),
       ])
       setUsers(u.users)
       setPayments(p.payments)
@@ -123,6 +172,7 @@ export function AdminPage({ onBack }: Props) {
       setSupportWhatsapp(support.raw.whatsapp || '')
       setSupportMessage(support.raw.message || 'Need help? Chat with support.')
       setSentNotifs(notifs.notifications)
+      setPlanDrafts(plans.plans.map(planToDraft))
       setError(null)
       setLastRefresh(new Date())
     } catch (err) {
@@ -188,6 +238,68 @@ export function AdminPage({ onBack }: Props) {
       toast.error(err instanceof Error ? err.message : 'Support save failed')
     } finally {
       setSupportBusy(false)
+    }
+  }
+
+  const patchPlanDraft = (id: string, patch: Partial<PlanDraft>) => {
+    setPlanDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, ...patch } : d)))
+  }
+
+  const savePlan = async (draft: PlanDraft) => {
+    setPlanBusyId(draft.id)
+    setError(null)
+    try {
+      await api.adminUpdatePlan({
+        id: draft.id,
+        name: draft.name.trim(),
+        price_usdt: Number(draft.price_usdt),
+        days: Number(draft.days),
+        sort_order: Number(draft.sort_order) || Number(draft.days),
+        features: featuresFromText(draft.featuresText),
+        recommended: draft.recommended,
+        active: draft.active,
+      })
+      const list = await api.adminPlans()
+      setPlanDrafts(list.plans.map(planToDraft))
+      toast.success(`Saved ${draft.name.trim() || draft.id}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Plan save failed')
+      toast.error(err instanceof Error ? err.message : 'Plan save failed')
+    } finally {
+      setPlanBusyId(null)
+    }
+  }
+
+  const createPlan = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!newPlanName.trim()) {
+      toast.error('Plan name is required')
+      return
+    }
+    setNewPlanBusy(true)
+    setError(null)
+    try {
+      await api.adminCreatePlan({
+        name: newPlanName.trim(),
+        price_usdt: Number(newPlanPrice),
+        days: Number(newPlanDays),
+        features: featuresFromText(newPlanFeatures),
+        recommended: newPlanRecommended,
+        active: true,
+      })
+      setNewPlanName('')
+      setNewPlanPrice('29')
+      setNewPlanDays('30')
+      setNewPlanFeatures(DEFAULT_FEATURES.join('\n'))
+      setNewPlanRecommended(false)
+      const list = await api.adminPlans()
+      setPlanDrafts(list.plans.map(planToDraft))
+      toast.success('Plan created')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Plan create failed')
+      toast.error(err instanceof Error ? err.message : 'Plan create failed')
+    } finally {
+      setNewPlanBusy(false)
     }
   }
 
@@ -337,7 +449,7 @@ export function AdminPage({ onBack }: Props) {
         </div>
         <h1>Admin</h1>
         <p>
-          Customer support links, in-app notifications, invite-only signup, accounts, activity, and
+          Plans, customer support, in-app notifications, invite-only signup, accounts, activity, and
           payments.
         </p>
       </header>
@@ -366,6 +478,149 @@ export function AdminPage({ onBack }: Props) {
           </div>
         </section>
       )}
+
+      <section className="account-panel">
+        <h2>Plans</h2>
+        <p className="muted create-hint">
+          Edit prices and durations shown on Billing, or add a new plan. Deactivate to hide without
+          deleting payment history. Only one plan can be Recommended.
+        </p>
+        <form className="create-user-form" onSubmit={(e) => void createPlan(e)}>
+          <label>
+            New plan name
+            <input
+              value={newPlanName}
+              onChange={(e) => setNewPlanName(e.target.value)}
+              placeholder="Pro · 90 days"
+              required
+            />
+          </label>
+          <label>
+            Price (USDT)
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={newPlanPrice}
+              onChange={(e) => setNewPlanPrice(e.target.value)}
+              required
+            />
+          </label>
+          <label>
+            Days
+            <input
+              type="number"
+              min={1}
+              value={newPlanDays}
+              onChange={(e) => setNewPlanDays(e.target.value)}
+              required
+            />
+          </label>
+          <label className="plan-check-label">
+            <input
+              type="checkbox"
+              checked={newPlanRecommended}
+              onChange={(e) => setNewPlanRecommended(e.target.checked)}
+            />
+            Recommended
+          </label>
+          <label className="plan-features-label">
+            Features (one per line)
+            <textarea
+              value={newPlanFeatures}
+              onChange={(e) => setNewPlanFeatures(e.target.value)}
+              rows={3}
+            />
+          </label>
+          <button type="submit" className="account-btn primary" disabled={newPlanBusy}>
+            {newPlanBusy ? 'Creating…' : 'Add plan'}
+          </button>
+        </form>
+
+        <div className="plan-admin-list">
+          {planDrafts.length === 0 ? (
+            <p className="muted">No plans yet.</p>
+          ) : (
+            planDrafts.map((draft) => (
+              <div key={draft.id} className={`plan-admin-card${!draft.active ? ' is-inactive' : ''}`}>
+                <div className="plan-admin-card-top">
+                  <code>{draft.id}</code>
+                  <div className="plan-admin-toggles">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={draft.recommended}
+                        onChange={(e) => patchPlanDraft(draft.id, { recommended: e.target.checked })}
+                      />
+                      Recommended
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={draft.active}
+                        onChange={(e) => patchPlanDraft(draft.id, { active: e.target.checked })}
+                      />
+                      Active
+                    </label>
+                  </div>
+                </div>
+                <div className="create-user-form plan-admin-fields">
+                  <label>
+                    Name
+                    <input
+                      value={draft.name}
+                      onChange={(e) => patchPlanDraft(draft.id, { name: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    Price (USDT)
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={draft.price_usdt}
+                      onChange={(e) => patchPlanDraft(draft.id, { price_usdt: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    Days
+                    <input
+                      type="number"
+                      min={1}
+                      value={draft.days}
+                      onChange={(e) => patchPlanDraft(draft.id, { days: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    Sort
+                    <input
+                      type="number"
+                      value={draft.sort_order}
+                      onChange={(e) => patchPlanDraft(draft.id, { sort_order: e.target.value })}
+                    />
+                  </label>
+                  <label className="plan-features-label">
+                    Features (one per line)
+                    <textarea
+                      value={draft.featuresText}
+                      onChange={(e) => patchPlanDraft(draft.id, { featuresText: e.target.value })}
+                      rows={3}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="account-btn primary"
+                    disabled={planBusyId === draft.id}
+                    onClick={() => void savePlan(draft)}
+                  >
+                    {planBusyId === draft.id ? 'Saving…' : 'Save plan'}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
 
       <section className="account-panel">
         <h2>Customer support</h2>

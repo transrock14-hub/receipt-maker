@@ -379,6 +379,173 @@ function ensure_notifications_schema(): void {
   );
 }
 
+/** Ensure plans table exists and has admin-editable columns. */
+function ensure_plans_schema(): void {
+  static $done = false;
+  if ($done) return;
+  $done = true;
+  $pdo = db();
+
+  if (db_driver() === 'sqlite') {
+    $pdo->exec(
+      "CREATE TABLE IF NOT EXISTS plans (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        price_usdt REAL NOT NULL,
+        days INTEGER NOT NULL,
+        active INTEGER NOT NULL DEFAULT 1,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        recommended INTEGER NOT NULL DEFAULT 0,
+        features TEXT NOT NULL DEFAULT ''
+      )"
+    );
+  } else {
+    $pdo->exec(
+      "CREATE TABLE IF NOT EXISTS plans (
+        id VARCHAR(32) PRIMARY KEY,
+        name VARCHAR(80) NOT NULL,
+        price_usdt DECIMAL(12, 2) NOT NULL,
+        days INT UNSIGNED NOT NULL,
+        active TINYINT(1) NOT NULL DEFAULT 1,
+        sort_order INT NOT NULL DEFAULT 0,
+        recommended TINYINT(1) NOT NULL DEFAULT 0,
+        features TEXT NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+  }
+
+  ensure_column('plans', 'sort_order', db_driver() === 'sqlite' ? 'INTEGER NOT NULL DEFAULT 0' : 'INT NOT NULL DEFAULT 0');
+  ensure_column('plans', 'recommended', db_driver() === 'sqlite' ? 'INTEGER NOT NULL DEFAULT 0' : 'TINYINT(1) NOT NULL DEFAULT 0');
+  ensure_column('plans', 'features', db_driver() === 'sqlite' ? "TEXT NOT NULL DEFAULT ''" : 'TEXT NULL');
+
+  // Seed defaults if empty
+  $count = (int)$pdo->query('SELECT COUNT(*) AS c FROM plans')->fetch()['c'];
+  if ($count === 0) {
+    $feat = default_plan_features_json();
+    $ins = $pdo->prepare(
+      'INSERT INTO plans (id, name, price_usdt, days, active, sort_order, recommended, features) VALUES (?, ?, ?, ?, 1, ?, ?, ?)'
+    );
+    $ins->execute(['pro30', 'Pro · 30 days', 29.00, 30, 30, 1, $feat]);
+    $ins->execute(['pro365', 'Pro · 1 year', 199.00, 365, 365, 0, $feat]);
+  } else {
+    // Backfill sort_order from days where still 0 and days differ
+    $pdo->exec('UPDATE plans SET sort_order = days WHERE sort_order = 0 AND days > 0');
+    $rec = (int)$pdo->query('SELECT COUNT(*) AS c FROM plans WHERE recommended = 1 AND active = 1')->fetch()['c'];
+    if ($rec === 0) {
+      $pdo->exec("UPDATE plans SET recommended = 1 WHERE id = 'pro30' AND active = 1");
+      if ((int)$pdo->query('SELECT COUNT(*) AS c FROM plans WHERE recommended = 1')->fetch()['c'] === 0) {
+        $pick = $pdo->query('SELECT id FROM plans WHERE active = 1 ORDER BY days ASC LIMIT 1')->fetch();
+        if ($pick) {
+          $pdo->prepare('UPDATE plans SET recommended = 1 WHERE id = ?')->execute([$pick['id']]);
+        }
+      }
+    }
+    // Backfill empty features
+    $empty = $pdo->query(
+      "SELECT id FROM plans WHERE features IS NULL OR features = '' OR features = '[]'"
+    )->fetchAll();
+    if ($empty) {
+      $upd = $pdo->prepare('UPDATE plans SET features = ? WHERE id = ?');
+      $feat = default_plan_features_json();
+      foreach ($empty as $row) {
+        $upd->execute([$feat, $row['id']]);
+      }
+    }
+  }
+}
+
+function ensure_column(string $table, string $column, string $definition): void {
+  if (table_has_column($table, $column)) return;
+  db()->exec('ALTER TABLE ' . $table . ' ADD COLUMN ' . $column . ' ' . $definition);
+}
+
+function table_has_column(string $table, string $column): bool {
+  $pdo = db();
+  if (db_driver() === 'sqlite') {
+    $rows = $pdo->query('PRAGMA table_info(' . $table . ')')->fetchAll();
+    foreach ($rows as $row) {
+      if (($row['name'] ?? '') === $column) return true;
+    }
+    return false;
+  }
+  $stmt = $pdo->prepare(
+    'SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+  );
+  $stmt->execute([$table, $column]);
+  return (int)$stmt->fetch()['c'] > 0;
+}
+
+function default_plan_features(): array {
+  return [
+    'Download & copy screenshots',
+    'Batch export',
+    'All wallets & banks',
+  ];
+}
+
+function default_plan_features_json(): string {
+  return json_encode(default_plan_features(), JSON_UNESCAPED_SLASHES) ?: '[]';
+}
+
+/** @return list<string> */
+function parse_plan_features(mixed $raw): array {
+  if (is_array($raw)) {
+    $list = $raw;
+  } elseif (is_string($raw) && trim($raw) !== '') {
+    $decoded = json_decode($raw, true);
+    if (is_array($decoded)) {
+      $list = $decoded;
+    } else {
+      // newline-separated fallback
+      $list = preg_split('/\r\n|\r|\n/', $raw) ?: [];
+    }
+  } else {
+    $list = [];
+  }
+  $out = [];
+  foreach ($list as $item) {
+    $s = trim((string)$item);
+    if ($s !== '') $out[] = $s;
+  }
+  return $out ?: default_plan_features();
+}
+
+function encode_plan_features(mixed $raw): string {
+  $list = parse_plan_features($raw);
+  // If caller passed empty intentionally via array, still store defaults for display
+  return json_encode($list, JSON_UNESCAPED_SLASHES) ?: default_plan_features_json();
+}
+
+function slugify_plan_id(string $name): string {
+  $slug = strtolower(trim($name));
+  $slug = preg_replace('/[^a-z0-9]+/', '', $slug) ?? '';
+  if ($slug === '') $slug = 'plan';
+  if (strlen($slug) > 28) $slug = substr($slug, 0, 28);
+  return $slug;
+}
+
+function plan_to_public(array $row): array {
+  return [
+    'id' => (string)$row['id'],
+    'name' => (string)$row['name'],
+    'price_usdt' => (float)$row['price_usdt'],
+    'days' => (int)$row['days'],
+    'active' => !empty($row['active']),
+    'sort_order' => (int)($row['sort_order'] ?? $row['days'] ?? 0),
+    'recommended' => !empty($row['recommended']),
+    'features' => parse_plan_features($row['features'] ?? ''),
+  ];
+}
+
+function clear_other_recommended(?string $exceptId = null): void {
+  if ($exceptId) {
+    db()->prepare('UPDATE plans SET recommended = 0 WHERE id != ?')->execute([$exceptId]);
+  } else {
+    db()->exec('UPDATE plans SET recommended = 0');
+  }
+}
+
 /** Key/value app settings (support contacts, etc.). */
 function ensure_settings_schema(): void {
   static $done = false;

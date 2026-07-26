@@ -59,8 +59,6 @@ export function BillingPage({ onBack }: Props) {
   }, [awaitingPayment, demoPaymentId, setUser, toast])
 
   const access = user?.access
-  const recommendedId =
-    plans.find((p) => p.days >= 30)?.id || plans[Math.floor(plans.length / 2)]?.id
 
   const startPay = async (planId: string) => {
     setBusy(true)
@@ -153,7 +151,18 @@ export function BillingPage({ onBack }: Props) {
         ) : (
           <div className="plan-grid">
             {plans.map((plan) => {
-              const recommended = plan.id === recommendedId
+              const recommended =
+                Boolean(plan.recommended) ||
+                (plans.every((p) => !p.recommended) &&
+                  plan.id === (plans.find((p) => p.days >= 30)?.id || plans[0]?.id))
+              const features =
+                plan.features && plan.features.length > 0
+                  ? plan.features
+                  : [
+                      'Download & copy screenshots',
+                      'Batch export',
+                      'All wallets & banks',
+                    ]
               return (
                 <article key={plan.id} className={`plan-card${recommended ? ' plan-recommended' : ''}`}>
                   {recommended ? <span className="plan-badge">Recommended</span> : null}
@@ -163,9 +172,9 @@ export function BillingPage({ onBack }: Props) {
                   </p>
                   <p className="plan-meta">{plan.days} days access</p>
                   <ul className="plan-perks">
-                    <li>Download & copy screenshots</li>
-                    <li>Batch export</li>
-                    <li>All wallets & banks</li>
+                    {features.map((f) => (
+                      <li key={f}>{f}</li>
+                    ))}
                   </ul>
                   <button
                     type="button"

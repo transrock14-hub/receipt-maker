@@ -23,6 +23,10 @@ export type Plan = {
   name: string
   price_usdt: string | number
   days: number
+  active?: boolean
+  sort_order?: number
+  recommended?: boolean
+  features?: string[]
 }
 
 const TOKEN_KEY = 'rm_session_token'
@@ -185,6 +189,35 @@ export const api = {
       },
     }),
   plans: () => request<{ ok: true; plans: Plan[] }>('/plans'),
+  adminPlans: () => request<{ ok: true; plans: Plan[] }>('/admin/plans'),
+  adminCreatePlan: (body: {
+    id?: string
+    name: string
+    price_usdt: number
+    days: number
+    features?: string[]
+    recommended?: boolean
+    active?: boolean
+    sort_order?: number
+  }) =>
+    request<{ ok: true; plan: Plan }>('/admin/plans', {
+      method: 'POST',
+      json: body,
+    }),
+  adminUpdatePlan: (body: {
+    id: string
+    name?: string
+    price_usdt?: number
+    days?: number
+    features?: string[]
+    recommended?: boolean
+    active?: boolean
+    sort_order?: number
+  }) =>
+    request<{ ok: true; plan: Plan }>('/admin/plans/update', {
+      method: 'POST',
+      json: body,
+    }),
   createPayment: (plan_id: string) =>
     request<{
       ok: true
