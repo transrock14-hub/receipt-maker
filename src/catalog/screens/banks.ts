@@ -263,12 +263,24 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
   const washH = Math.max(actionsTop - 4, avatarTop + avatarR * 2 + 100)
 
   const objs: ReturnType<typeof tag>[] = [
-    // Soft teal → black wash (not hard rings) — matches real Revolut
-    tag(rect('tealWash', 0, 0, w, washH, teal), 'header'),
-    tag({ ...rect('fade1', 0, Math.floor(washH * 0.35), w, Math.floor(washH * 0.25), bg), opacity: 0.35 }, 'header'),
-    tag({ ...rect('fade2', 0, Math.floor(washH * 0.5), w, Math.floor(washH * 0.28), bg), opacity: 0.65 }, 'header'),
-    tag({ ...rect('fade3', 0, Math.floor(washH * 0.72), w, Math.ceil(washH * 0.28), bg), opacity: 0.92 }, 'header'),
-    tag(rect('blackBody', 0, washH - 2, w, Math.max(200, ctx.height - washH + 2), bg), 'header'),
+    // Smooth teal → black vertical gradient — matches real Revolut header
+    tag(
+      {
+        ...rect('tealWash', 0, 0, w, washH, teal),
+        fill: {
+          type: 'linear',
+          coords: { x1: 0, y1: 0, x2: 0, y2: washH },
+          colorStops: [
+            { offset: 0, color: '#0E7377' },
+            { offset: 0.35, color: '#0A5C5F' },
+            { offset: 0.7, color: '#043336' },
+            { offset: 1, color: '#000000' },
+          ],
+          gradientUnits: 'pixels',
+        },
+      },
+      'header',
+    ),
 
     // Frosted circular nav
     tag(circle('backBg', side, navY, 15, 'rgba(255,255,255,0.14)'), 'header'),
