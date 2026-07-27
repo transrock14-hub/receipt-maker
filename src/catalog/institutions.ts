@@ -24,6 +24,7 @@ import {
   buildChaseScreen,
   buildRevolutScreen,
   buildWiseScreen,
+  REVOLUT_DEFAULTS,
 } from './screens/banks'
 import {
   buildMpesaScreen,
@@ -282,13 +283,15 @@ export const INSTITUTIONS: InstitutionDef[] = [
   }),
   def({
     id: 'revolut-payment',
-    name: 'Payment completed',
+    name: 'Transfer completed',
     brand: 'Revolut',
     category: 'bank',
-    recommendedDeviceIds: ['iphone-16-pro', 's23'],
+    recommendedDeviceIds: ['iphone-16-pro', 'iphone-15', 's23'],
     build: buildRevolutScreen,
     chromeInk: '#FFFFFF',
+    chromeBar: '#0A7A7E',
     appUrl: 'https://app.revolut.com',
+    defaults: { ...REVOLUT_DEFAULTS },
   }),
   def({
     id: 'wise-sent',
