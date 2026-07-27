@@ -1,5 +1,5 @@
 import { vals } from './merge'
-import { circle, label, rect, textObj } from '../fabricHelpers'
+import { circle, label, rect, strokedRect, textObj } from '../fabricHelpers'
 import { wiseMark } from '../tokenIcons'
 import { styleKitForInstitution } from '../../study/styleKits'
 import {
@@ -210,12 +210,13 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
   const ink = '#FFFFFF'
   const muted = '#8E8E93'
   const card = '#1C1C1E'
-  const cardSoft = '#2C2C2E'
+  const chip = '#2C2C2E'
   const blue = '#0666EB'
   const link = '#3B82F6'
-  const green = '#24C38E'
-  const avatarBg = '#7DD3E8'
-  const teal = '#0A7A7E'
+  const green = '#2ACF6F'
+  const avatarBg = '#7EC8D9'
+  const tealTop = '#0B6B6F'
+  const tealMid = '#064A4D'
   const font =
     ctx.colors.fontFamily ||
     kit?.fontFamily ||
@@ -224,8 +225,8 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
   const compact = isCompactHeight(ctx)
   const w = ctx.width
   const cx = w / 2
-  const side = compact ? 14 : 16
-  const cardR = compact ? 14 : 16
+  const side = 16
+  const cardR = 20
   const recipient = v.recipient || REVOLUT_DEFAULTS.recipient!
   const amount = v.amountFiat || REVOLUT_DEFAULTS.amountFiat!
   const relative = v.date || REVOLUT_DEFAULTS.date!
@@ -236,66 +237,184 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
   const stepTime = v.network || 'Today 11:08'
   const initials = recipientInitials(recipient)
 
-  const navY = ctx.top + (compact ? 6 : 8)
-  const avatarR = compact ? 36 : 42
-  const avatarTop = navY + (compact ? 36 : 44)
-  const nameTop = avatarTop + avatarR * 2 + (compact ? 12 : 16)
-  const amountTop = nameTop + (compact ? 26 : 30)
-  const relativeTop = amountTop + (compact ? 36 : 44)
-  const actionsTop = relativeTop + (compact ? 28 : 34)
-  const actionH = compact ? 36 : 40
+  const navY = ctx.top + 10
+  const avatarR = compact ? 38 : 44
+  const avatarTop = navY + 40
+  const nameTop = avatarTop + avatarR * 2 + 14
+  const amountTop = nameTop + 28
+  const relativeTop = amountTop + (compact ? 40 : 46)
+  const actionsTop = relativeTop + 30
+  const actionH = 44
   const gap = 8
   const actionW = (w - side * 2 - gap * 2) / 3
-  const equivTop = actionsTop + actionH + (compact ? 14 : 18)
-  const equivH = compact ? 44 : 48
-  const refTop = equivTop + equivH + 10
-  const refH = compact ? 52 : 56
-  const timelineTop = refTop + refH + 10
-  const stepH = compact ? 44 : 50
-  const timelineH = compact ? 28 + stepH * 3 + 36 : 32 + stepH * 3 + 44
-  const footerTop = timelineTop + timelineH + 10
-  const footerH = compact ? 72 : 80
+  const equivTop = actionsTop + actionH + 16
+  const equivH = 52
+  const refTop = equivTop + equivH + 8
+  const refH = 62
+  const timelineTop = refTop + refH + 8
+  const stepH = compact ? 48 : 52
+  const timelinePadTop = 44
+  const disclaimerExtra = compact ? 28 : 34
+  const timelineH = timelinePadTop + stepH * 3 + disclaimerExtra
+  const footerTop = timelineTop + timelineH + 8
+  const footerH = 88
+  const barX = side + 18
 
-  const actionBtn = (
-    id: string,
-    labelText: string,
-    icon: string,
-    x: number,
-    fill: string,
-    textFill: string,
-  ): ReturnType<typeof tag>[] => [
-    tag(rect(`${id}Bg`, x, actionsTop, actionW, actionH, fill, actionH / 2), 'cta'),
+  const objs: ReturnType<typeof tag>[] = [
+    tag(rect('tealDeep', 0, 0, w, avatarTop + avatarR + 80, tealTop), 'header'),
+    tag({ ...rect('tealFade', 0, avatarTop + 20, w, 160, tealMid), opacity: 0.85 }, 'header'),
+    tag({ ...rect('blackA', 0, nameTop - 10, w, 70, bg), opacity: 0.25 }, 'header'),
+    tag({ ...rect('blackB', 0, amountTop - 4, w, 90, bg), opacity: 0.55 }, 'header'),
+    tag({ ...rect('blackC', 0, relativeTop - 4, w, 80, bg), opacity: 0.88 }, 'header'),
+    tag(rect('blackRest', 0, actionsTop - 8, w, Math.max(120, ctx.height - (actionsTop - 8)), bg), 'header'),
+
+    tag(label('back', '←', navY, side + 2, 22, 400, font, ink), 'header'),
+    tag(label('menu', '•••', navY + 2, w - side - 28, 16, 700, font, ink), 'header'),
+
+    tag(circle('avatar', cx - avatarR, avatarTop, avatarR, avatarBg), 'header'),
     tag(
-      label(`${id}Icon`, icon, actionsTop + (compact ? 9 : 10), x + 10, compact ? 13 : 14, 500, font, textFill),
-      'cta',
+      textObj(
+        'initials',
+        initials,
+        avatarTop + avatarR - (compact ? 13 : 15),
+        cx,
+        compact ? 24 : 28,
+        600,
+        null,
+        font,
+        '#FFFFFF',
+        { originX: 'center' },
+      ),
+      'header',
+    ),
+    tag(circle('outBg', cx + avatarR - 17, avatarTop + avatarR * 2 - 19, 11, '#FFFFFF'), 'header'),
+    tag(
+      label('outArrow', '→', avatarTop + avatarR * 2 - 16, cx + avatarR - 13, 13, 700, font, '#111111'),
+      'header',
+    ),
+
+    tag(
+      textObj('recipient', recipient, nameTop, cx, 17, 600, 'recipient', font, ink, {
+        originX: 'center',
+      }),
+      'header',
     ),
     tag(
-      label(
-        `${id}Lbl`,
-        labelText,
-        actionsTop + (compact ? 11 : 12),
-        x + 28,
-        compact ? 11 : 12,
-        500,
-        font,
-        textFill,
-      ),
+      textObj('amountFiat', amount, amountTop, cx, compact ? 36 : 42, 700, 'amountFiat', font, ink, {
+        originX: 'center',
+      }),
+      'header',
+    ),
+    tag(
+      textObj('date', relative, relativeTop, cx, 14, 400, 'date', font, muted, {
+        originX: 'center',
+      }),
+      'header',
+    ),
+
+    tag(rect('sendAgainBg', side, actionsTop, actionW, actionH, '#FFFFFF', actionH / 2), 'cta'),
+    tag(circle('sendAgainIconBg', side + 10, actionsTop + 12, 10, '#111111'), 'cta'),
+    tag(label('sendAgainIcon', '→', actionsTop + 14, side + 13, 12, 700, font, '#FFFFFF'), 'cta'),
+    tag(label('sendAgainLbl', 'Send again', actionsTop + 14, side + 34, 12, 600, font, '#111111'), 'cta'),
+
+    tag(rect('scheduleBg', side + actionW + gap, actionsTop, actionW, actionH, chip, actionH / 2), 'cta'),
+    ...revolutCalendarIcon('sched', side + actionW + gap + 12, actionsTop + 13, ink),
+    tag(
+      label('scheduleLbl', 'Schedule', actionsTop + 14, side + actionW + gap + 32, 12, 500, font, ink),
       'cta',
+    ),
+
+    tag(rect('splitBg', side + (actionW + gap) * 2, actionsTop, actionW, actionH, chip, actionH / 2), 'cta'),
+    ...revolutSplitIcon('split', side + (actionW + gap) * 2 + 12, actionsTop + 14, ink),
+    tag(
+      label('splitLbl', 'Split bill', actionsTop + 14, side + (actionW + gap) * 2 + 32, 12, 500, font, ink),
+      'cta',
+    ),
+
+    tag(rect('equivCard', side, equivTop, w - side * 2, equivH, card, cardR), 'details'),
+    tag(label('equivL', 'Equivalent to', equivTop + 18, side + 16, 14, 400, font, muted), 'details'),
+    ...bulgarianFlag('bgFlag', w - side - 16 - 14 - measureApprox(equivalent, 14) - 8, equivTop + 19),
+    tag(
+      textObj('fee', equivalent, equivTop + 17, w - side - 16, 14, 600, 'fee', font, ink, {
+        originX: 'right',
+      }),
+      'details',
+    ),
+
+    tag(rect('refCard', side, refTop, w - side * 2, refH, card, cardR), 'details'),
+    tag(label('refL', 'Reference', refTop + 12, side + 16, 13, 400, font, muted), 'details'),
+    tag(
+      textObj('cta', reference, refTop + 32, side + 16, 15, 500, 'other', font, ink),
+      'details',
+    ),
+
+    tag(rect('tlCard', side, timelineTop, w - side * 2, timelineH, card, cardR), 'details'),
+    tag(
+      textObj('status', statusTitle, timelineTop + 14, side + 16, 15, 600, 'status', font, ink),
+      'details',
+    ),
+    tag(
+      label('share', '↗  Share', timelineTop + 14, w - side - 16, 13, 500, font, link, {
+        originX: 'right',
+      }),
+      'details',
     ),
   ]
 
-  const timelineStep = (id: string, title: string, sub: string, y: number, last = false) => {
-    const barH = last ? (compact ? 28 : 34) : stepH - 8
-    return [
-      tag(rect(`${id}Bar`, side + 14, y + 4, 3, barH, green, 1.5), 'details'),
-      tag(textObj(`${id}T`, title, y, side + 28, compact ? 13 : 14, 600, null, font, ink), 'details'),
-      tag(label(`${id}S`, sub, y + (compact ? 18 : 20), side + 28, compact ? 11 : 12, 400, font, muted), 'details'),
-    ]
+  const titles = ['Verified by Revolut', "Sent to recipient's bank", "Received by recipient's bank"]
+  for (let i = 0; i < 3; i++) {
+    const y = timelineTop + timelinePadTop + i * stepH
+    const barH = i === 2 ? 18 : 28
+    objs.push(tag(rect(`s${i}Bar`, barX, y + 2, 4, barH, green, 2), 'details'))
+    objs.push(tag(textObj(`s${i}T`, titles[i], y, side + 36, 14, 600, null, font, ink), 'details'))
+    if (i < 2) {
+      objs.push(tag(label(`s${i}S`, stepTime, y + 20, side + 36, 12, 400, font, muted), 'details'))
+    } else {
+      objs.push(tag(label(`s${i}S`, `${stepTime} ·`, y + 20, side + 36, 12, 400, font, muted), 'details'))
+      const timeW = measureApprox(`${stepTime} · `, 12)
+      objs.push(
+        tag(
+          label(
+            'disclaimer',
+            compact
+              ? 'May take extra time to credit.'
+              : "It may take additional time to credit the recipient's account.",
+            y + 20,
+            side + 36 + timeW,
+            12,
+            400,
+            font,
+            muted,
+          ),
+          'details',
+        ),
+      )
+      objs.push(tag(label('learnMore', 'Learn more', y + 38, side + 36, 12, 500, font, link), 'details'))
+    }
   }
+
+  objs.push(
+    tag(rect('footCard', side, footerTop, w - side * 2, footerH, card, cardR), 'details'),
+    tag(label('fromL', 'From', footerTop + 18, side + 16, 14, 400, font, muted), 'details'),
+    ...revolutRMark('revR', w - side - 16 - measureApprox(fromWallet, 14) - 22, footerTop + 16),
+    tag(
+      textObj('walletType', fromWallet, footerTop + 17, w - side - 16, 14, 600, 'walletType', font, blue, {
+        originX: 'right',
+      }),
+      'details',
+    ),
+    tag(label('confL', 'Confirmation', footerTop + 52, side + 16, 14, 400, font, muted), 'details'),
+    tag(
+      label('download', '↓  Download', footerTop + 51, w - side - 16, 14, 600, font, blue, {
+        originX: 'right',
+      }),
+      'details',
+    ),
+  )
 
   return {
     background: bg,
-    palette: [bg, teal, ink, blue, green, avatarBg, card],
+    palette: [bg, tealTop, ink, blue, green, avatarBg, card],
     fields: [
       field('recipient', 'recipient', 'Recipient', REVOLUT_DEFAULTS.recipient!),
       field('amountFiat', 'amountFiat', 'Amount', REVOLUT_DEFAULTS.amountFiat!),
@@ -308,158 +427,51 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
       field('time', 'time', 'Time', REVOLUT_DEFAULTS.time!),
       field('battery', 'battery', 'Battery %', REVOLUT_DEFAULTS.battery!),
     ],
-    objects: [
-      // Teal → black wash (Revolut transfer header)
-      tag({ ...rect('tealWash', 0, 0, w, avatarTop + avatarR * 2 + 120, teal), opacity: 0.95 }, 'header'),
-      tag({ ...rect('fadeA', 0, avatarTop + avatarR, w, 90, bg), opacity: 0.35 }, 'header'),
-      tag({ ...rect('fadeB', 0, amountTop - 8, w, 110, bg), opacity: 0.72 }, 'header'),
-      tag({ ...rect('fadeC', 0, actionsTop - 20, w, 60, bg), opacity: 0.92 }, 'header'),
-
-      tag(label('back', '‹', navY - 2, side, 28, 300, font, ink), 'header'),
-      tag(label('menu', '···', navY + 4, w - side - 22, 18, 700, font, ink), 'header'),
-
-      tag(circle('avatar', cx - avatarR, avatarTop, avatarR, avatarBg), 'header'),
-      tag(
-        textObj('initials', initials, avatarTop + avatarR - (compact ? 12 : 14), cx, compact ? 22 : 26, 600, null, font, '#FFFFFF', {
-          originX: 'center',
-        }),
-        'header',
-      ),
-      // Outbound badge on avatar
-      tag(circle('outBg', cx + avatarR - 16, avatarTop + avatarR * 2 - 18, 10, '#FFFFFF'), 'header'),
-      tag(
-        label('outArrow', '→', avatarTop + avatarR * 2 - 16, cx + avatarR - 13, 12, 700, font, '#111'),
-        'header',
-      ),
-
-      tag(
-        textObj('recipient', recipient, nameTop, cx, compact ? 16 : 17, 600, 'recipient', font, ink, {
-          originX: 'center',
-        }),
-        'header',
-      ),
-      tag(
-        textObj('amountFiat', amount, amountTop, cx, compact ? 34 : 40, 700, 'amountFiat', font, ink, {
-          originX: 'center',
-        }),
-        'header',
-      ),
-      tag(
-        textObj('date', relative, relativeTop, cx, compact ? 13 : 14, 400, 'date', font, muted, {
-          originX: 'center',
-        }),
-        'header',
-      ),
-
-      ...actionBtn('sendAgain', 'Send again', '→', side, '#FFFFFF', '#111111'),
-      ...actionBtn('schedule', 'Schedule', '▦', side + actionW + gap, cardSoft, ink),
-      ...actionBtn('split', 'Split bill', '▣', side + (actionW + gap) * 2, cardSoft, ink),
-
-      // Equivalent card
-      tag(rect('equivCard', side, equivTop, w - side * 2, equivH, card, cardR), 'details'),
-      tag(label('equivL', 'Equivalent to', equivTop + (compact ? 14 : 16), side + 14, 13, 400, font, muted), 'details'),
-      tag(
-        textObj(
-          'fee',
-          `🇧🇬  ${equivalent}`,
-          equivTop + (compact ? 13 : 15),
-          w - side - 14,
-          compact ? 13 : 14,
-          600,
-          'fee',
-          font,
-          ink,
-          { originX: 'right' },
-        ),
-        'details',
-      ),
-
-      // Reference card
-      tag(rect('refCard', side, refTop, w - side * 2, refH, card, cardR), 'details'),
-      tag(label('refL', 'Reference', refTop + 10, side + 14, 12, 400, font, muted), 'details'),
-      tag(
-        textObj('cta', reference, refTop + (compact ? 28 : 30), side + 14, compact ? 14 : 15, 500, 'other', font, ink),
-        'details',
-      ),
-
-      // Transfer completed + timeline
-      tag(rect('tlCard', side, timelineTop, w - side * 2, timelineH, card, cardR), 'details'),
-      tag(
-        textObj(
-          'status',
-          statusTitle,
-          timelineTop + 12,
-          side + 14,
-          compact ? 14 : 15,
-          600,
-          'status',
-          font,
-          ink,
-        ),
-        'details',
-      ),
-      tag(label('share', '↗  Share', timelineTop + 12, w - side - 14, 13, 500, font, link, { originX: 'right' }), 'details'),
-
-      ...timelineStep('s1', 'Verified by Revolut', stepTime, timelineTop + 40),
-      ...timelineStep('s2', "Sent to recipient's bank", stepTime, timelineTop + 40 + stepH),
-      ...timelineStep(
-        's3',
-        "Received by recipient's bank",
-        `${stepTime}`,
-        timelineTop + 40 + stepH * 2,
-        true,
-      ),
-      tag(
-        label(
-          'disclaimer',
-          compact
-            ? 'May take extra time to credit · Learn more'
-            : "It may take additional time to credit the recipient's account. Learn more",
-          timelineTop + 40 + stepH * 2 + (compact ? 34 : 38),
-          side + 28,
-          compact ? 10 : 11,
-          400,
-          font,
-          muted,
-        ),
-        'details',
-      ),
-
-      // From / Confirmation footer
-      tag(rect('footCard', side, footerTop, w - side * 2, footerH, card, cardR), 'details'),
-      tag(label('fromL', 'From', footerTop + 14, side + 14, 13, 400, font, muted), 'details'),
-      tag(
-        textObj(
-          'walletType',
-          `Ⓡ  ${fromWallet}`,
-          footerTop + 13,
-          w - side - 14,
-          compact ? 13 : 14,
-          600,
-          'walletType',
-          font,
-          blue,
-          { originX: 'right' },
-        ),
-        'details',
-      ),
-      tag(label('confL', 'Confirmation', footerTop + (compact ? 42 : 46), side + 14, 13, 400, font, muted), 'details'),
-      tag(
-        label(
-          'download',
-          '↓  Download',
-          footerTop + (compact ? 41 : 45),
-          w - side - 14,
-          compact ? 13 : 14,
-          600,
-          font,
-          blue,
-          { originX: 'right' },
-        ),
-        'details',
-      ),
-    ],
+    objects: objs,
   }
+}
+
+function measureApprox(text: string, fontSize: number): number {
+  return Math.ceil(text.length * fontSize * 0.52)
+}
+
+function bulgarianFlag(prefix: string, left: number, top: number) {
+  const fw = 14
+  const fh = 10
+  return [
+    tag(rect(`${prefix}W`, left, top, fw, fh / 3, '#FFFFFF', 0), 'details'),
+    tag(rect(`${prefix}G`, left, top + fh / 3, fw, fh / 3, '#00966E', 0), 'details'),
+    tag(rect(`${prefix}R`, left, top + (fh * 2) / 3, fw, fh / 3, '#D62612', 0), 'details'),
+  ]
+}
+
+function revolutRMark(prefix: string, left: number, top: number) {
+  return [
+    tag(circle(`${prefix}Bg`, left, top, 9, '#0666EB'), 'details'),
+    tag(
+      label(`${prefix}T`, 'R', top + 2, left + 9, 11, 700, 'Inter, sans-serif', '#FFFFFF', {
+        originX: 'center',
+      }),
+      'details',
+    ),
+  ]
+}
+
+function revolutCalendarIcon(prefix: string, left: number, top: number, ink: string) {
+  return [
+    tag(strokedRect(`${prefix}Cal`, left, top + 2, 12, 11, ink, 2, 1.2), 'cta'),
+    tag(rect(`${prefix}CalTop`, left + 2, top, 2, 4, ink, 1), 'cta'),
+    tag(rect(`${prefix}CalTop2`, left + 8, top, 2, 4, ink, 1), 'cta'),
+  ]
+}
+
+function revolutSplitIcon(prefix: string, left: number, top: number, ink: string) {
+  return [
+    tag(rect(`${prefix}a`, left, top, 5, 5, ink, 1), 'cta'),
+    tag(rect(`${prefix}b`, left + 7, top, 5, 5, ink, 1), 'cta'),
+    tag(rect(`${prefix}c`, left, top + 7, 5, 5, ink, 1), 'cta'),
+    tag(rect(`${prefix}d`, left + 7, top + 7, 5, 5, ink, 1), 'cta'),
+  ]
 }
 
 /** Revolut transfer-completed defaults (bank transfer detail). */
