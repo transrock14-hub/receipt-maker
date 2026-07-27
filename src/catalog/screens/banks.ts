@@ -282,10 +282,10 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
       'header',
     ),
 
-    // Frosted circular nav
-    tag(circle('backBg', side, navY, 15, 'rgba(255,255,255,0.14)'), 'header'),
-    tag(label('back', '←', navY + 3, side + 15, 15, 400, font, ink, { originX: 'center' }), 'header'),
-    tag(circle('menuBg', w - side - 30, navY, 15, 'rgba(255,255,255,0.14)'), 'header'),
+    // Dark charcoal circular nav buttons (as in the real app)
+    tag(circle('backBg', side, navY, 15, 'rgba(28,36,36,0.55)'), 'header'),
+    tag(label('back', '←', navY + 2, side + 15, 17, 600, font, ink, { originX: 'center' }), 'header'),
+    tag(circle('menuBg', w - side - 30, navY, 15, 'rgba(28,36,36,0.55)'), 'header'),
     tag(
       label('menu', '•••', navY + 5, w - side - 15, 12, 700, font, ink, { originX: 'center' }),
       'header',
@@ -396,11 +396,12 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
         tag(label(`s${i}S`, `${stepTime} ·`, y + 19, contentL, 12, 400, font, muted), 'details'),
       )
       const timeW = measureApprox(`${stepTime} · `, 12)
+      const disc2Text = "credit the recipient's account."
       objs.push(
         tag(
           label(
             'disc1',
-            compact ? 'May take extra time to credit the' : "It may take additional time to credit the",
+            compact ? 'May take extra time to' : 'It may take additional time to',
             y + 19,
             contentL + timeW,
             12,
@@ -411,16 +412,14 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
           'details',
         ),
       )
-      objs.push(
-        tag(label('disc2', "recipient's account.", y + 35, contentL, 12, 400, font, muted), 'details'),
-      )
+      objs.push(tag(label('disc2', disc2Text, y + 35, contentL, 12, 400, font, muted), 'details'))
       objs.push(
         tag(
           label(
             'learnMore',
             'Learn more',
             y + 35,
-            contentL + measureApprox("recipient's account. ", 12),
+            contentL + measureApprox(`${disc2Text} `, 12) + 4,
             12,
             500,
             font,
@@ -471,7 +470,15 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
 }
 
 function measureApprox(text: string, fontSize: number): number {
-  return Math.ceil(text.length * fontSize * 0.52)
+  let units = 0
+  for (const ch of text) {
+    if (" .·:'iljt1I".includes(ch)) units += 0.3
+    else if ('fr-()'.includes(ch)) units += 0.37
+    else if ('mwMW'.includes(ch)) units += 0.85
+    else if (ch >= 'A' && ch <= 'Z') units += 0.64
+    else units += 0.52
+  }
+  return Math.ceil(units * fontSize)
 }
 
 function bulgarianFlag(prefix: string, left: number, top: number) {
