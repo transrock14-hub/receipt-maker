@@ -239,6 +239,7 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
 
   // Compact vertical rhythm so full footer fits on S23 (780)
   const navY = ctx.top + 6
+  const navR = compact ? 18 : 20
   const avatarR = compact ? 36 : 40
   const avatarTop = navY + 38
   const nameTop = avatarTop + avatarR * 2 + 12
@@ -253,9 +254,14 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
   const refTop = equivTop + equivH + 8
   const refH = 56
   const timelineTop = refTop + refH + 8
-  const stepH = compact ? 46 : 48
-  const timelinePadTop = 42
-  const timelineH = timelinePadTop + stepH * 3 + 34
+  // Rhythm measured from the real receipt (scaled from 460px-wide capture)
+  const stepH = compact ? 52 : 59
+  const timelinePadTop = compact ? 48 : 54 // card top → first step title
+  const stepBarH = compact ? 44 : 49
+  const bar3H = compact ? 61 : 68
+  const timeOff = compact ? 21 : 24
+  const note2Off = compact ? 38 : 43
+  const timelineH = timelinePadTop - 8 + stepH * 2 + bar3H + (compact ? 12 : 14)
   const footerTop = timelineTop + timelineH + 8
   const footerH = 78
   const barX = side + 16
@@ -282,14 +288,11 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
       'header',
     ),
 
-    // Dark charcoal circular nav buttons (as in the real app)
-    tag(circle('backBg', side, navY, 15, 'rgba(28,36,36,0.55)'), 'header'),
-    tag(label('back', '←', navY + 2, side + 15, 17, 600, font, ink, { originX: 'center' }), 'header'),
-    tag(circle('menuBg', w - side - 30, navY, 15, 'rgba(28,36,36,0.55)'), 'header'),
-    tag(
-      label('menu', '•••', navY + 5, w - side - 15, 12, 700, font, ink, { originX: 'center' }),
-      'header',
-    ),
+    // Dark charcoal circular nav buttons with vector glyphs (as in the real app)
+    tag(circle('backBg', side, navY, navR, 'rgba(28,36,36,0.55)'), 'header'),
+    ...revolutBackArrow('backArr', side + navR, navY + navR, ink),
+    tag(circle('menuBg', w - side - navR * 2, navY, navR, 'rgba(28,36,36,0.55)'), 'header'),
+    ...revolutMenuDots('menuDots', w - side - navR, navY + navR, ink),
 
     tag(circle('avatar', cx - avatarR, avatarTop, avatarR, avatarBg), 'header'),
     tag(
@@ -354,8 +357,8 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
     tag(label('equivL', 'Equivalent to', equivTop + 16, side + 14, 13, 400, font, muted), 'details'),
     ...bulgarianFlag(
       'bgFlag',
-      w - side - 14 - measureApprox(equivalent, 14) - 20,
-      equivTop + 17,
+      w - side - 14 - measureApprox(equivalent, 14) - 26,
+      equivTop + 16,
     ),
     tag(
       textObj('fee', equivalent, equivTop + 15, w - side - 14, 14, 600, 'fee', font, ink, {
@@ -374,7 +377,7 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
       textObj('status', statusTitle, timelineTop + 12, side + 14, 14, 500, 'status', font, statusMuted),
       'details',
     ),
-    ...revolutShareIcon('shareIc', w - side - 14 - measureApprox('Share', 13) - 16, timelineTop + 12, link),
+    ...revolutShareIcon('shareIc', w - side - 14 - measureApprox('Share', 13) - 19, timelineTop + 12, link),
     tag(
       label('share', 'Share', timelineTop + 12, w - side - 14, 13, 500, font, link, {
         originX: 'right',
@@ -385,15 +388,16 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
 
   const titles = ['Verified by Revolut', "Sent to recipient's bank", "Received by recipient's bank"]
   for (let i = 0; i < 3; i++) {
-    const y = timelineTop + timelinePadTop + i * stepH
-    const barH = i === 2 ? 18 : 26
-    objs.push(tag(rect(`s${i}Bar`, barX, y + 2, 4, barH, green, 2), 'details'))
+    const y = timelineTop + timelinePadTop + i * stepH // step title top
+    const barH = i === 2 ? bar3H : stepBarH
+    // Bar spans the whole step: 8px above the title to below the last line
+    objs.push(tag(rect(`s${i}Bar`, barX, y - 8, 4, barH, green, 2), 'details'))
     objs.push(tag(textObj(`s${i}T`, titles[i], y, contentL, 14, 600, null, font, ink), 'details'))
     if (i < 2) {
-      objs.push(tag(label(`s${i}S`, stepTime, y + 19, contentL, 12, 400, font, muted), 'details'))
+      objs.push(tag(label(`s${i}S`, stepTime, y + timeOff, contentL, 12, 400, font, muted), 'details'))
     } else {
       objs.push(
-        tag(label(`s${i}S`, `${stepTime} ·`, y + 19, contentL, 12, 400, font, muted), 'details'),
+        tag(label(`s${i}S`, `${stepTime} ·`, y + timeOff, contentL, 12, 400, font, muted), 'details'),
       )
       const timeW = measureApprox(`${stepTime} · `, 12)
       const disc2Text = "credit the recipient's account."
@@ -402,7 +406,7 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
           label(
             'disc1',
             compact ? 'May take extra time to' : 'It may take additional time to',
-            y + 19,
+            y + timeOff,
             contentL + timeW,
             12,
             400,
@@ -412,13 +416,13 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
           'details',
         ),
       )
-      objs.push(tag(label('disc2', disc2Text, y + 35, contentL, 12, 400, font, muted), 'details'))
+      objs.push(tag(label('disc2', disc2Text, y + note2Off, contentL, 12, 400, font, muted), 'details'))
       objs.push(
         tag(
           label(
             'learnMore',
             'Learn more',
-            y + 35,
+            y + note2Off,
             contentL + measureApprox(`${disc2Text} `, 12) + 4,
             12,
             500,
@@ -434,7 +438,7 @@ export function buildRevolutScreen(ctx: ScreenBuildContext): ScreenContent {
   objs.push(
     tag(rect('footCard', side, footerTop, w - side * 2, footerH, card, cardR), 'details'),
     tag(label('fromL', 'From', footerTop + 14, side + 14, 13, 400, font, muted), 'details'),
-    ...revolutRMark('revR', w - side - 14 - measureApprox(fromWallet, 13) - 20, footerTop + 12),
+    ...revolutRMark('revR', w - side - 14 - measureApprox(fromWallet, 13) - 24, footerTop + 12, blue),
     tag(
       textObj('walletType', fromWallet, footerTop + 13, w - side - 14, 13, 600, 'walletType', font, blue, {
         originX: 'right',
@@ -481,25 +485,66 @@ function measureApprox(text: string, fontSize: number): number {
   return Math.ceil(units * fontSize)
 }
 
+/** Circular Bulgarian flag (Revolut uses round flag badges). */
 function bulgarianFlag(prefix: string, left: number, top: number) {
-  const fw = 15
-  const fh = 11
+  const d = 15
+  const band = d / 3
+  const colors = ['#FFFFFF', '#00966E', '#D62612']
+  return colors.map((c, i) =>
+    tag(
+      {
+        ...rect(`${prefix}${i}`, left, top + band * i, d, band, c, 0),
+        clipPath: {
+          type: 'Circle',
+          version: '7.0.0',
+          radius: d / 2,
+          originX: 'center',
+          originY: 'center',
+          left: 0,
+          // circle center relative to this stripe's center
+          top: band * (1 - i),
+        },
+      },
+      'details',
+    ),
+  )
+}
+
+/** Back arrow drawn from shapes — text glyphs render inconsistently. */
+function revolutBackArrow(prefix: string, cx: number, cy: number, ink: string) {
+  const half = 6.5
+  const chevron = (name: string, angle: number) =>
+    tag(
+      {
+        ...rect(name, cx - half, cy, 7.5, 2.2, ink, 1.1, {
+          originX: 'left',
+          originY: 'center',
+        }),
+        angle,
+      },
+      'header',
+    )
   return [
-    tag(rect(`${prefix}W`, left, top, fw, Math.round(fh / 3), '#FFFFFF', 0), 'details'),
-    tag(rect(`${prefix}G`, left, top + Math.round(fh / 3), fw, Math.round(fh / 3), '#00966E', 0), 'details'),
-    tag(rect(`${prefix}R`, left, top + Math.round((fh * 2) / 3), fw, Math.round(fh / 3), '#D62612', 0), 'details'),
+    tag(
+      rect(`${prefix}Shaft`, cx - half, cy - 1.1, half * 2, 2.2, ink, 1.1),
+      'header',
+    ),
+    chevron(`${prefix}Up`, -45),
+    chevron(`${prefix}Dn`, 45),
   ]
 }
 
-function revolutRMark(prefix: string, left: number, top: number) {
+function revolutMenuDots(prefix: string, cx: number, cy: number, ink: string) {
+  const r = 1.8
+  const gapX = 5.4
+  return [-1, 0, 1].map((i) =>
+    tag(circle(`${prefix}${i + 1}`, cx + i * gapX - r, cy - r, r, ink), 'header'),
+  )
+}
+
+function revolutRMark(prefix: string, left: number, top: number, color: string) {
   return [
-    tag(circle(`${prefix}Bg`, left, top, 8, '#007AFF'), 'details'),
-    tag(
-      label(`${prefix}T`, 'R', top + 1, left + 8, 10, 700, 'Roboto, sans-serif', '#FFFFFF', {
-        originX: 'center',
-      }),
-      'details',
-    ),
+    tag(label(`${prefix}T`, 'R', top, left, 14, 800, 'Roboto, sans-serif', color), 'details'),
   ]
 }
 
