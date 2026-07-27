@@ -543,6 +543,7 @@ export const REVOLUT_DEFAULTS = {
   time: '11:08',
   battery: '35',
   charging: '',
+  cellular: 'off',
 } as const
 
 /** Revolut-style initials: first+middle when 3+ names (Ricardo Moreno Ruiz → RM). */

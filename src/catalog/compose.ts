@@ -67,7 +67,9 @@ export function composeScreenshot(
     institution.appUrl,
   )
 
-  const objects = [...chrome, ...content.objects]
+  // Chrome (status bar) renders above screen content — full-bleed
+  // backgrounds like Revolut's teal wash must not cover it.
+  const objects = [...content.objects, ...chrome]
   const canvasJson = {
     version: '7.4.0',
     objects,

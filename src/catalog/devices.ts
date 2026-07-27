@@ -1,9 +1,11 @@
 import type { DeviceId, DeviceBezel, DeviceProfile, GenerateValues } from '../types/receipt'
 import { circle, label, rect, textObj, type FabricObj } from './fabricHelpers'
 import {
+  alarmSize,
   batteryPctWidth,
   batterySize,
   cellularLabelWidth,
+  drawAlarm,
   drawBattery,
   drawSignal,
   drawWifi,
@@ -455,15 +457,18 @@ function samsungStatus(
   const battW = batterySize('oneui').width
   const wifiW = wifiSize('oneui').width
   const sigW = signalSize(sigOpts).width
-  const pctStr = String(pct)
-  const pctW = batteryPctWidth(pctStr, 12)
+  const alarmW = alarmSize().width
+  const pctStr = `${pct}%`
+  const pctW = batteryPctWidth(pctStr, 12) + 7
   const radioW = radio ? cellularLabelWidth(radio, 11) : 0
 
+  // One UI order (left → right): alarm · wifi · signal · NN% · battery
   const battLeft = w - edge - battW
   const pctLeft = battLeft - 4 - pctW
-  const wifiLeft = pctLeft - gap - wifiW
-  const sigLeft = wifiLeft - gap - sigW
-  const radioLeft = sigLeft - (radioW ? gap * 0.85 + radioW : 0)
+  const sigLeft = pctLeft - gap - sigW
+  const wifiLeft = sigLeft - gap - wifiW
+  const alarmLeft = wifiLeft - gap - alarmW
+  const radioLeft = alarmLeft - (radioW ? gap * 0.85 + radioW : 0)
 
   const objs: FabricObj[] = [
     textObj('time', time, iconTop - 1, 16, 13.5, 600, 'time', font, ink),
@@ -472,9 +477,13 @@ function samsungStatus(
     objs.push(label('cellular', radio, iconTop + 0.2, radioLeft, 11, 700, font, ink))
   }
   objs.push(
-    ...drawSignal('sig', sigLeft, iconTop, ink, { ...sigOpts, style: 'oneui' }).objs,
+    ...drawAlarm('alarm', alarmLeft, iconTop - 0.4, ink).objs,
     ...drawWifi('wf', wifiLeft, iconTop - 0.2, ink, mask, wifiLvl, 'oneui').objs,
-    textObj('battery', pctStr, iconTop - 0.2, pctLeft, 12, 600, 'battery', font, ink),
+    ...drawSignal('sig', sigLeft, iconTop, ink, { ...sigOpts, style: 'oneui' }).objs,
+    {
+      ...textObj('battery', pctStr, iconTop - 0.2, pctLeft, 12, 600, 'battery', font, ink),
+      receiptTextSuffix: '%',
+    },
     ...drawBattery('batt', battLeft, iconTop + 0.35, pct, ink, 'oneui', { charging }).objs,
   )
   return objs

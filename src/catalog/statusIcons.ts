@@ -247,7 +247,7 @@ export function drawBattery(
   const tipW = style === 'ios' ? 1.7 : 1.6
   const tipGap = 0.55
   const { height } = batterySize(style)
-  const r = bodyH * (style === 'ios' ? 0.38 : 0.34)
+  const r = bodyH * (style === 'ios' ? 0.38 : style === 'oneui' ? 0.24 : 0.34)
   const stroke = style === 'ios' ? 1.4 : 1.25
   const critical = level <= 20
   const warn = level <= 30 && level > 20
@@ -264,7 +264,7 @@ export function drawBattery(
 
   const inset = stroke + (style === 'ios' ? 1.2 : 1.1)
   const innerH = bodyH - inset * 2
-  const innerR = Math.max(0.9, innerH / 2.2)
+  const innerR = style === 'oneui' ? Math.max(0.8, innerH / 4) : Math.max(0.9, innerH / 2.2)
   const maxFill = bodyW - inset * 2
   const fillRatio = level >= 97 ? 1 : Math.max(0.08, level / 100)
   let fillW = Math.max(innerH * 0.45, maxFill * fillRatio)
@@ -307,6 +307,54 @@ export function drawBattery(
 
   const width = bodyW + tipGap + tipW
   return { obj: objs[0], objs, width, height }
+}
+
+export function alarmSize(): { width: number; height: number } {
+  return { width: 12.6, height: 12.6 }
+}
+
+/** One UI alarm-clock status icon — outlined dial, ~10:10 hands, bell stubs. */
+export function drawAlarm(
+  id: string,
+  left: number,
+  top: number,
+  ink: string,
+): { objs: FabricObj[]; width: number; height: number } {
+  const { width, height } = alarmSize()
+  const r = 4.4
+  const cx = left + width / 2
+  const cy = top + height / 2 + 0.9
+  const stroke = 1.25
+  const bellD = (r + 0.9) * 0.707
+  const objs: FabricObj[] = [
+    {
+      ...circle(`${id}Dial`, cx - r, cy - r, r, 'rgba(0,0,0,0)'),
+      stroke: ink,
+      strokeWidth: stroke,
+      receiptGroup: 'chrome',
+    },
+    // hands (minute up, hour right)
+    { ...rect(`${id}Min`, cx - 0.55, cy - 3, 1.1, 3.2, ink, 0.55), receiptGroup: 'chrome' },
+    { ...rect(`${id}Hr`, cx - 0.55, cy - 0.55, 2.9, 1.1, ink, 0.55), receiptGroup: 'chrome' },
+    // diagonal bell stubs at the top corners, tangent to the dial
+    {
+      ...rect(`${id}BellL`, cx - bellD, cy - bellD, 3, 1.2, ink, 0.6, {
+        originX: 'center',
+        originY: 'center',
+      }),
+      angle: -45,
+      receiptGroup: 'chrome',
+    },
+    {
+      ...rect(`${id}BellR`, cx + bellD, cy - bellD, 3, 1.2, ink, 0.6, {
+        originX: 'center',
+        originY: 'center',
+      }),
+      angle: 45,
+      receiptGroup: 'chrome',
+    },
+  ]
+  return { objs, width, height }
 }
 
 export function batteryPctWidth(pct: number | string, fontSize = 12): number {

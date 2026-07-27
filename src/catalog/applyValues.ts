@@ -23,8 +23,10 @@ export function applyGenerateValuesToCanvasJson(
     if (val != null && String(val).length) {
       // Battery field stores "87" or "87%" — status icons show digits only
       if (key === 'battery') {
-        // Digits only — charging bolt lives on the battery icon, not in the % text
-        obj.text = String(val).replace('%', '').replace(/^⚡/, '').trim()
+        // Digits only — charging bolt lives on the battery icon, not in the % text.
+        // One UI shows a "%" suffix; the icon builder opts in via receiptTextSuffix.
+        const digits = String(val).replace('%', '').replace(/^⚡/, '').trim()
+        obj.text = digits + String(obj.receiptTextSuffix || '')
       } else if (key === 'other') {
         let text = String(val)
         // Fix common truncation / typo from older demos
